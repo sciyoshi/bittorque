@@ -1,0 +1,3 @@
+Import('*')
+
+env.Program('torque', ['torque-gtk.c', '../../libtorque/libtorque.a'], LINKFLAGS=['-Wl,--export-dynamic'])

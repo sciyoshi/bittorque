@@ -1,0 +1,3 @@
+Import('*')
+
+env.SConscript(['gtk/SConscript', 'cli/SConscript'])
