@@ -1,0 +1,12 @@
+Import('*')
+
+envlib.StaticLibrary('bittorque',
+	['bt-manager.c',
+	 'bt-torrent.c',
+	 'bt-torrent-announce.c',
+	 'bt-peer.c',
+	 'bt-utils.c',
+	 'bt-peer.h',
+	 'bt-bencode.c',
+	 'sha1.c',
+	 'rc4.c'])

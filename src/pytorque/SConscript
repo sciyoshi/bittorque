@@ -1,0 +1,7 @@
+Import('*')
+
+envpy.Command('pytorque.c',
+	['pytorque.override', 'pytorque.defs'],
+	'pygtk-codegen-2.0 --prefix torque --override $SOURCES > $TARGET')
+
+envpy.SharedLibrary('torque', ['pytorque.c', 'pytorque-module.c'], LIBPREFIX='')
