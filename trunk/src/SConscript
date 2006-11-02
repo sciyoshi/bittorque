@@ -1,3 +1,0 @@
-Import('*')
-
-env.SConscript(['libtorque/SConscript', 'frontends/SConscript'])
