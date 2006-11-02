@@ -15,6 +15,35 @@
 
 static const char hex_alphabet[] = "0123456789ABCDEF";
 
+static gpointer
+bt_main_context_copy (gpointer boxed)
+{
+	GMainContext *context = (GMainContext *) boxed;
+	if (context)
+		return g_main_context_ref (context);
+	return NULL;
+}
+
+static void
+bt_main_context_free (gpointer boxed)
+{
+	GMainContext *context = (GMainContext *) boxed;
+	if (context)
+		g_main_context_unref (context);
+}
+
+GType
+bt_main_context_get_type ()
+{
+	static GType type = 0;
+
+	if (G_UNLIKELY (type == 0)) {
+		type = g_boxed_type_register_static ("GMainContext", bt_main_context_copy, bt_main_context_free);
+	}
+
+	return type;
+}
+
 GQuark
 bt_error_get_quark ()
 {

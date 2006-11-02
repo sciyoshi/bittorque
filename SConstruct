@@ -1,5 +1,3 @@
-import sys
-sys.path.insert(0, '$HOME/.local')
 import os
 
 #########################
@@ -25,7 +23,7 @@ def check_pkg(context, name):
 
 SConsignFile('.scons/sconsign')
 
-env = Environment(tools=['default', 'disttar'], toolpath=['tools'], ENV=os.environ)
+env = Environment(tools=['default', 'disttar'], toolpath=['tools'])
 
 env['DISTTAR_FORMAT'] = 'bz2'
 env.Append(DISTTAR_EXCLUDEEXTS=['.o', '.so', '.pyc', '.a', '.so', '.bz2'], DISTTAR_EXCLUDEDIRS=['.scons'])
@@ -81,7 +79,7 @@ envgtk.Append(LINKFLAGS=['-Wl,--export-dynamic'])
 envgtk.Append(LIBPATH=['#/src/bittorque'])
 envgtk.Append(LIBS=['bittorque'])
 envgtk.ParseConfig('pkg-config --cflags --libs gtk+-2.0 libglade-2.0 glib-2.0 gmodule-2.0 gnet-2.0')
-envgtk.Append(CPPDEFINES=['-DDATADIR=\\"/home/user/scormi3/Projects/bittorque/data\\"'])
+envgtk.Append(CPPDEFINES=['-DDATADIR=\\"/home/sciyoshi/Build/bittorque/bittorque/data\\"'])
 
 #env.DistTar('bittorque', [env.Dir('#')])
 
