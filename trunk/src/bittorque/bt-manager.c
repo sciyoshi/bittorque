@@ -1,3 +1,5 @@
+#include <string.h>
+#include <stdlib.h>
 #include <glib.h>
 #include <gnet.h>
 
@@ -9,7 +11,9 @@ G_DEFINE_TYPE (BtManager, bt_manager, G_TYPE_OBJECT)
 
 enum {
 	PROP_0,
+	PROP_CONTEXT,
 	PROP_PORT,
+	PROP_PEER_ID
 };
 
 static void
@@ -17,6 +21,7 @@ bt_manager_set_property (GObject *object, guint property, const GValue *value, G
 {
 	BtManager *self = BT_MANAGER (object);
 	GError *error = NULL;
+	const gchar *string;
 
 	switch (property) {
 	case PROP_PORT:
@@ -24,6 +29,14 @@ bt_manager_set_property (GObject *object, guint property, const GValue *value, G
 			g_warning ("could not set port: %s", error->message);
 			g_clear_error (&error);
 		}
+		break;
+
+	case PROP_PEER_ID:
+		string = g_value_get_string (value);
+		if (strlen (string) != 20)
+			return;
+		memcpy (self->peer_id, string, 20);
+		break;
 	}
 }
 
@@ -35,6 +48,16 @@ bt_manager_get_property (GObject *object, guint property, GValue *value, GParamS
 	switch (property) {
 	case PROP_PORT:
 		g_value_set_uint (value, bt_manager_get_port (self));
+		break;
+
+	case PROP_CONTEXT:
+		self->context = g_value_get_pointer (value);
+		if (self->context)
+			g_main_context_ref (self->context);
+
+	case PROP_PEER_ID:
+		g_value_take_string (value, g_strndup (self->peer_id, 20));
+		break;
 	}
 }
 
@@ -43,6 +66,7 @@ bt_manager_init (BtManager *manager)
 {
 	manager->context = NULL;
 	manager->accept_socket = NULL;
+	manager->private_dir = "~/.bittorque";
 	manager->port = 6881;
 	manager->torrents = g_hash_table_new_full (g_str_hash, g_str_equal, NULL, (GDestroyNotify) g_object_unref);
 	bt_create_peer_id (manager->peer_id);
@@ -95,6 +119,14 @@ bt_manager_class_init (BtManagerClass *klass)
 	gclass->finalize     = bt_manager_finalize;
 	gclass->dispose      = bt_manager_dispose;
 
+	pspec = g_param_spec_boxed ("context",
+	                            "main context",
+	                            "The GMainContext that this manager should run in.",
+	                            BT_TYPE_MAIN_CONTEXT,
+	                            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+
+	g_object_class_install_property (gclass, PROP_CONTEXT, pspec);
+
 	pspec = g_param_spec_uint ("port",
 	                           "accept port",
 	                           "The port to use to listen for peer connections on.",
@@ -104,6 +136,14 @@ bt_manager_class_init (BtManagerClass *klass)
 	                           G_PARAM_READWRITE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
 
 	g_object_class_install_property (gclass, PROP_PORT, pspec);
+
+	pspec = g_param_spec_string ("peer-id",
+	                             "peer id",
+	                             "The peer id that all torrents should use.",
+	                             "-TXXTYY-INVALIDPEERI",
+	                             G_PARAM_READWRITE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+
+	g_object_class_install_property (gclass, PROP_PEER_ID, pspec);
 }
 
 static void
@@ -120,11 +160,14 @@ bt_manager_accept_callback (GTcpSocket* server G_GNUC_UNUSED, GTcpSocket* client
 		return;
 	}
 
-	addr = gnet_tcp_socket_get_local_inetaddr (client);
+	addr = gnet_tcp_socket_get_remote_inetaddr (client);
 	name = gnet_inetaddr_get_canonical_name (addr);
 	port = gnet_inetaddr_get_port (addr);
 
 	g_debug ("connection received from %s, port %d", name, port);
+
+	g_free (name);
+	gnet_inetaddr_delete (addr);
 
 	bt_peer_new (self, NULL, client, NULL);
 
@@ -229,12 +272,5 @@ bt_manager_new ()
 BtManager *
 bt_manager_new_with_main (GMainContext *context)
 {
-	BtManager *manager = BT_MANAGER (g_object_new (BT_TYPE_MANAGER, NULL));
-
-	if (context)
-		g_main_context_ref (context);
-
-	manager->context = context;
-
-	return manager;
+	return BT_MANAGER (g_object_new (BT_TYPE_MANAGER, "context", context, NULL));
 }

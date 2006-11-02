@@ -89,7 +89,7 @@ bt_torrent_dispose (GObject *torrent)
 	g_object_unref (self->manager);
 	self->manager = NULL;
 
-	((GObjectClass *) bt_torrent_parent_class)->dispose (G_OBJECT (self));
+	((GObjectClass *) bt_torrent_parent_class)->dispose (torrent);
 }
 
 static void
@@ -105,7 +105,7 @@ bt_torrent_finalize (GObject *torrent)
 	g_free (self->name);
 	g_string_free (self->cache, TRUE);
 
-	((GObjectClass *) bt_torrent_parent_class)->finalize (G_OBJECT (self));
+	((GObjectClass *) bt_torrent_parent_class)->finalize (torrent);
 }
 
 static void
@@ -349,8 +349,6 @@ bt_torrent_new (BtManager *manager, gchar *filename, GError **error)
 	}
 
 	torrent->manager = g_object_ref (manager);
-
-	bt_peer_new (manager, torrent, NULL, gnet_inetaddr_new_nonblock ("127.0.0.1", 6552));
 
 	return torrent;
 }

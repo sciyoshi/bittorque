@@ -103,6 +103,8 @@ main (int argc, char *argv[])
 	/* create the BtManager */
 	app.manager = bt_manager_new ();
 
+	g_print (app.manager->peer_id);
+
 	if (!bt_manager_set_port (app.manager, 6552, &error)) {
 		g_error ("couldn't set port: %s", error->message);
 		return 1;

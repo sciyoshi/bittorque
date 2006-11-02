@@ -13,7 +13,6 @@ G_BEGIN_DECLS
 #define BT_IS_PEER(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), BT_TYPE_PEER))
 
 #define BT_TYPE_PEER_STATUS      (bt_peer_status_get_type ())
-#define BT_TYPE_PEER_SEND_STATUS (bt_peer_send_status_get_type ())
 
 typedef struct _BtPeer      BtPeer;
 typedef struct _BtPeerClass BtPeerClass;
@@ -23,7 +22,8 @@ typedef struct _BtPeerClass BtPeerClass;
 
 typedef enum {
 	BT_PEER_STATUS_CONNECTING,
-	BT_PEER_STATUS_CONNECTED,
+	BT_PEER_STATUS_CONNECTED_SEND,
+	BT_PEER_STATUS_CONNECTED_WAIT,
 	BT_PEER_STATUS_HANDSHAKE,
 	BT_PEER_STATUS_HANDSHAKE_PEER_ID,
 	BT_PEER_STATUS_DISCONNECTING,
@@ -31,13 +31,6 @@ typedef enum {
 	BT_PEER_STATUS_IDLE_HAVE,
 	BT_PEER_STATUS_IDLE
 } BtPeerStatus;
-
-typedef enum {
-	BT_PEER_SEND_STATUS_HANDSHAKE,
-	BT_PEER_SEND_STATUS_HANDSHAKING,
-	BT_PEER_SEND_STATUS_DISCONNECTED,
-	BT_PEER_SEND_STATUS_IDLE
-} BtPeerSendStatus;
 
 struct _BtPeer {
 	GObject       parent;
@@ -50,8 +43,6 @@ struct _BtPeer {
 
 	GString      *buffer;
 	gsize         pos;
-
-	BtPeerSendStatus send_status;
 
 	gchar        *bitmask;
 
