@@ -1,0 +1,37 @@
+%%
+headers
+#include <Python.h>
+#include <pygobject.h>
+#include "../bittorque/bt-manager.h"
+#include "../bittorque/bt-torrent.h"
+#include "../bittorque/bt-peer.h"
+%%
+modulename bittorque
+%%
+import gobject.GObject as PyGObject_Type
+%%
+ignore-glob
+ *_get_type
+%%
+override bt_manager_new
+static int
+_wrap_bt_manager_new (PyGObject *self, PyObject *args, PyObject *kwargs G_GNUC_UNUSED)
+{
+	PyGObject *context = NULL;
+
+	if (!PyArg_ParseTuple (args, "|O:torque.Manager.__init__", &context))
+		return -1;
+
+	if (context == NULL) {
+		if (pygobject_construct (self, NULL))
+			return -1;
+	} else {
+		/* FIXME: set the main context */
+		if (pygobject_construct (self, NULL))
+			return -1;
+	}
+
+	return 0;
+}
+%%
+new-constructor BT_TYPE_MANAGER
