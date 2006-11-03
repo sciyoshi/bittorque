@@ -30,6 +30,8 @@ struct _BtManager {
 	gchar         peer_id[21];
 
 	gushort       port;
+
+	gchar        *private_dir;
 };
 
 struct _BtManagerClass {

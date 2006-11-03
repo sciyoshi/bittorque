@@ -31,6 +31,11 @@ bt_manager_set_property (GObject *object, guint property, const GValue *value, G
 		}
 		break;
 
+	case PROP_CONTEXT:
+		self->context = g_value_get_pointer (value);
+		if (self->context)
+			g_main_context_ref (self->context);
+
 	case PROP_PEER_ID:
 		string = g_value_get_string (value);
 		if (strlen (string) != 20)
@@ -51,9 +56,8 @@ bt_manager_get_property (GObject *object, guint property, GValue *value, GParamS
 		break;
 
 	case PROP_CONTEXT:
-		self->context = g_value_get_pointer (value);
-		if (self->context)
-			g_main_context_ref (self->context);
+		g_value_set_pointer (value, self->context);
+		break;
 
 	case PROP_PEER_ID:
 		g_value_take_string (value, g_strndup (self->peer_id, 20));
@@ -66,10 +70,22 @@ bt_manager_init (BtManager *manager)
 {
 	manager->context = NULL;
 	manager->accept_socket = NULL;
-	manager->private_dir = "~/.bittorque";
+	manager->private_dir = g_strdup ("~/.bittorque");
 	manager->port = 6881;
 	manager->torrents = g_hash_table_new_full (g_str_hash, g_str_equal, NULL, (GDestroyNotify) g_object_unref);
 	bt_create_peer_id (manager->peer_id);
+}
+
+static GObject *
+bt_manager_constructor (GType type, guint num, GObjectConstructParam *properties)
+{
+	GObject *object;
+	BtManager *self;
+
+	object = G_OBJECT_CLASS (bt_manager_parent_class)->constructor (type, num, properties);
+	self = BT_MANAGER (object);
+
+	return object;
 }
 
 static void
@@ -118,11 +134,12 @@ bt_manager_class_init (BtManagerClass *klass)
 	gclass->get_property = bt_manager_get_property;
 	gclass->finalize     = bt_manager_finalize;
 	gclass->dispose      = bt_manager_dispose;
+	gclass->constructor  = bt_manager_constructor;
 
 	pspec = g_param_spec_boxed ("context",
 	                            "main context",
 	                            "The GMainContext that this manager should run in.",
-	                            BT_TYPE_MAIN_CONTEXT,
+	                            G_TYPE_POINTER,
 	                            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
 
 	g_object_class_install_property (gclass, PROP_CONTEXT, pspec);
