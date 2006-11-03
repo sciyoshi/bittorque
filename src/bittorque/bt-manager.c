@@ -13,8 +13,18 @@ enum {
 	PROP_0,
 	PROP_CONTEXT,
 	PROP_PORT,
-	PROP_PEER_ID
+	PROP_PEER_ID,
+	PROP_PRIVATE_DIR
 };
+
+enum {
+	SIGNAL_NEW_CONNECTION,
+	SIGNAL_LAST
+};
+
+static guint signals[SIGNAL_LAST] = {0};
+
+static void bt_manager_new_connection_callback (BtManager *self, GTcpSocket *client, gpointer data);
 
 static void
 bt_manager_set_property (GObject *object, guint property, const GValue *value, GParamSpec *pspec G_GNUC_UNUSED)
@@ -32,15 +42,24 @@ bt_manager_set_property (GObject *object, guint property, const GValue *value, G
 		break;
 
 	case PROP_CONTEXT:
+		if (self->context)
+			g_main_context_unref (self->context);
 		self->context = g_value_get_pointer (value);
 		if (self->context)
 			g_main_context_ref (self->context);
+		break;
 
 	case PROP_PEER_ID:
-		string = g_value_get_string (value);
+		string = g_value_dup_string (value);
 		if (strlen (string) != 20)
 			return;
 		memcpy (self->peer_id, string, 20);
+		break;
+
+	case PROP_PRIVATE_DIR:
+		if (self->private_dir)
+			g_free (self->private_dir);
+		self->private_dir = g_value_dup_string (value);
 		break;
 	}
 }
@@ -62,6 +81,10 @@ bt_manager_get_property (GObject *object, guint property, GValue *value, GParamS
 	case PROP_PEER_ID:
 		g_value_take_string (value, g_strndup (self->peer_id, 20));
 		break;
+
+	case PROP_PRIVATE_DIR:
+		g_value_set_string (value, self->private_dir);
+		break;
 	}
 }
 
@@ -73,7 +96,7 @@ bt_manager_init (BtManager *manager)
 	manager->private_dir = g_strdup ("~/.bittorque");
 	manager->port = 6881;
 	manager->torrents = g_hash_table_new_full (g_str_hash, g_str_equal, NULL, (GDestroyNotify) g_object_unref);
-	bt_create_peer_id (manager->peer_id);
+	memset (manager->peer_id, 21, 0);
 }
 
 static GObject *
@@ -84,6 +107,9 @@ bt_manager_constructor (GType type, guint num, GObjectConstructParam *properties
 
 	object = G_OBJECT_CLASS (bt_manager_parent_class)->constructor (type, num, properties);
 	self = BT_MANAGER (object);
+
+	if (*(self->peer_id) == '\0')
+		bt_create_peer_id (self->peer_id);
 
 	return object;
 }
@@ -124,6 +150,8 @@ bt_manager_class_init (BtManagerClass *klass)
 {
 	GObjectClass *gclass;
 	GParamSpec *pspec;
+	GClosure *closure;
+	GType params[1];
 
 	if (!g_thread_supported ())
 		g_thread_init (NULL);
@@ -136,11 +164,10 @@ bt_manager_class_init (BtManagerClass *klass)
 	gclass->dispose      = bt_manager_dispose;
 	gclass->constructor  = bt_manager_constructor;
 
-	pspec = g_param_spec_boxed ("context",
-	                            "main context",
-	                            "The GMainContext that this manager should run in.",
-	                            G_TYPE_POINTER,
-	                            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+	pspec = g_param_spec_pointer ("context",
+	                              "main context",
+	                              "The GMainContext that this manager should run in.",
+	                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
 
 	g_object_class_install_property (gclass, PROP_CONTEXT, pspec);
 
@@ -161,10 +188,33 @@ bt_manager_class_init (BtManagerClass *klass)
 	                             G_PARAM_READWRITE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
 
 	g_object_class_install_property (gclass, PROP_PEER_ID, pspec);
+
+	pspec = g_param_spec_string ("private-dir",
+	                             "private directory",
+	                             "The directory in which to store preferences, .torrent files, and fast resume data.",
+	                             "~/.bittorque",
+	                             G_PARAM_READWRITE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME | G_PARAM_CONSTRUCT_ONLY);
+
+	g_object_class_install_property (gclass, PROP_PRIVATE_DIR, pspec);
+
+	closure = g_cclosure_new (G_CALLBACK (bt_manager_new_connection_callback), NULL, NULL);
+
+	params[0] = G_TYPE_POINTER;
+
+	signals[SIGNAL_NEW_CONNECTION] =
+		g_signal_newv ("new-connection",
+		               BT_TYPE_MANAGER,
+		               G_SIGNAL_RUN_LAST,
+		               closure,
+		               NULL, NULL,
+		               g_cclosure_marshal_VOID__POINTER,
+		               G_TYPE_NONE,
+		               1,
+		               params);
 }
 
 static void
-bt_manager_accept_callback (GTcpSocket* server G_GNUC_UNUSED, GTcpSocket* client, BtManager *self)
+bt_manager_new_connection_callback (BtManager *self, GTcpSocket* client, gpointer data G_GNUC_UNUSED)
 {
 	GInetAddr *addr;
 	gushort    port;
@@ -172,10 +222,7 @@ bt_manager_accept_callback (GTcpSocket* server G_GNUC_UNUSED, GTcpSocket* client
 
 	g_return_if_fail (BT_IS_MANAGER (self));
 
-	if (!client) {
-		g_warning ("could not accept connection");
-		return;
-	}
+	g_return_if_fail (client);
 
 	addr = gnet_tcp_socket_get_remote_inetaddr (client);
 	name = gnet_inetaddr_get_canonical_name (addr);
@@ -187,6 +234,21 @@ bt_manager_accept_callback (GTcpSocket* server G_GNUC_UNUSED, GTcpSocket* client
 	gnet_inetaddr_delete (addr);
 
 	bt_peer_new (self, NULL, client, NULL);
+
+	return;
+}
+
+static void
+bt_manager_accept_callback (GTcpSocket* server G_GNUC_UNUSED, GTcpSocket* client, BtManager *self)
+{
+	g_return_if_fail (BT_IS_MANAGER (self));
+
+	if (!client) {
+		g_warning ("could not accept connection");
+		return;
+	}
+
+	g_signal_emit (self, signals[SIGNAL_NEW_CONNECTION], 0, client);
 
 	return;
 }
