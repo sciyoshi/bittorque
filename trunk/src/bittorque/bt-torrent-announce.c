@@ -179,9 +179,6 @@ bt_torrent_announce (BtTorrent *self)
 {
 	g_return_val_if_fail (BT_IS_TORRENT (self), FALSE);
 
-	if (self->tracker_status != BT_TORRENT_TRACKER_STATUS_IDLE)
-		return FALSE;
-
 	if (self->announce_list) {
 		GSList *tier = g_slist_nth (self->announce_list, self->tracker_current_tier);
 		GSList *tracker = g_slist_nth ((GSList *) tier->data, self->tracker_current_tracker);

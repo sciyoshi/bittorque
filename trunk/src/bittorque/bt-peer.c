@@ -9,7 +9,8 @@ static const GEnumValue bt_peer_status_values[] = {
 	{BT_PEER_STATUS_CONNECTING, "BT_PEER_STATUS_CONNECTING", "connecting"},
 	{BT_PEER_STATUS_CONNECTED_SEND, "BT_PEER_STATUS_CONNECTED_SEND", "connected_send"},
 	{BT_PEER_STATUS_CONNECTED_WAIT, "BT_PEER_STATUS_CONNECTED_WAIT", "connected_wait"},
-	{BT_PEER_STATUS_HANDSHAKE, "BT_PEER_STATUS_HANDSHAKE", "handshake"},
+	{BT_PEER_STATUS_SEND_HANDSHAKE, "BT_PEER_STATUS_SEND_HANDSHAKE", "send_handshake"},
+	{BT_PEER_STATUS_WAIT_HANDSHAKE, "BT_PEER_STATUS_WAIT_HANDSHAKE", "wait_handshake"},
 	{BT_PEER_STATUS_HANDSHAKE_PEER_ID, "BT_PEER_STATUS_HANDSHAKE_PEER_ID", "handshake_peer_id"},
 	{BT_PEER_STATUS_DISCONNECTING, "BT_PEER_STATUS_DISCONNECTING", "disconnecting"},
 	{BT_PEER_STATUS_DISCONNECTED, "BT_PEER_STATUS_DISCONNECTED", "disconnected"},
@@ -35,6 +36,112 @@ enum {
 	PROP_CHOKED,
 	PROP_INTERESTED
 };
+
+enum {
+	SIGNAL_CONNECTED,
+	SIGNAL_LAST
+};
+
+static guint signals[SIGNAL_LAST] = {0};
+
+/**
+ * bt_peer_set_choking:
+ *
+ * Sets if we are choking the other peer.
+ */
+
+void
+bt_peer_set_choking (BtPeer *self, gboolean choking)
+{
+	g_return_if_fail (BT_IS_PEER (self));
+	self->choking = choking;
+}
+
+/**
+ * bt_peer_set_interesting:
+ *
+ * Sets if we are interested in the other peer, i.e. he is "interesting".
+ */
+
+void
+bt_peer_set_interesting (BtPeer *self, gboolean interesting)
+{
+	g_return_if_fail (BT_IS_PEER (self));
+	self->interesting = interesting;
+}
+
+gboolean
+bt_peer_get_choking (BtPeer *self)
+{
+	g_return_val_if_fail (BT_IS_PEER (self), FALSE);
+	return self->choking;
+}
+
+gboolean
+bt_peer_get_interesting (BtPeer *self)
+{
+	g_return_val_if_fail (BT_IS_PEER (self), FALSE);
+	return self->interesting;
+}
+
+gboolean
+bt_peer_get_choked (BtPeer *self)
+{
+	g_return_val_if_fail (BT_IS_PEER (self), FALSE);
+	return self->choked;
+}
+
+gboolean
+bt_peer_get_interested (BtPeer *self)
+{
+	g_return_val_if_fail (BT_IS_PEER (self), FALSE);
+	return self->interested;
+}
+
+
+gboolean
+bt_peer_check (BtPeer *self)
+{
+	g_return_val_if_fail (BT_IS_PEER (self), FALSE);
+	return FALSE;
+}
+
+static void
+bt_peer_connection_callback (GConn *connection G_GNUC_UNUSED, GConnEvent *event, BtPeer *self)
+{
+	g_return_if_fail (BT_IS_PEER (self));
+
+	switch (event->type) {
+	case GNET_CONN_ERROR:
+		g_warning ("peer connection error");
+		break;
+
+	case GNET_CONN_CONNECT:
+		g_debug ("connected to peer");
+		self->status = BT_PEER_STATUS_CONNECTED_SEND;
+		g_signal_emit (self, signals[SIGNAL_CONNECTED], 0);
+		break;
+
+	case GNET_CONN_READ:
+		bt_peer_receive (self, event->buffer, event->length);
+		break;
+
+	case GNET_CONN_WRITE:
+		break;
+
+	default:
+		break;
+	}
+
+	return;
+}
+
+void
+bt_peer_connect (BtPeer *self)
+{
+	self->status = BT_PEER_STATUS_CONNECTING;
+	gnet_conn_connect (self->socket);
+}
 
 static void
 bt_peer_set_property (GObject *object, guint property, const GValue *value, GParamSpec *pspec G_GNUC_UNUSED)
@@ -86,6 +193,18 @@ bt_peer_init (BtPeer *peer)
 	peer->status = BT_PEER_STATUS_DISCONNECTED;
 }
 
+static GObject *
+bt_peer_constructor (GType type, guint num, GObjectConstructParam *properties)
+{
+	GObject *object;
+	BtPeer  *self;
+
+	object = G_OBJECT_CLASS (bt_peer_parent_class)->constructor (type, num, properties);
+	self = BT_PEER (object);
+
+	return object;
+
+}
 static void
 bt_peer_dispose (GObject *peer)
 {
@@ -129,7 +248,7 @@ static void
 bt_peer_class_init (BtPeerClass *klass)
 {
 	GObjectClass *gclass;
-	GParamSpec *pspec;
+	GParamSpec   *pspec;
 
 	gclass = G_OBJECT_CLASS (klass);
 
@@ -137,6 +256,7 @@ bt_peer_class_init (BtPeerClass *klass)
 	gclass->get_property = bt_peer_get_property;
 	gclass->finalize     = bt_peer_finalize;
 	gclass->dispose      = bt_peer_dispose;
+	gclass->constructor  = bt_peer_constructor;
 
 	pspec = g_param_spec_boolean ("choking",
 	                             "choking peer",
@@ -169,124 +289,20 @@ bt_peer_class_init (BtPeerClass *klass)
 	                             G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
 
 	g_object_class_install_property (gclass, PROP_INTERESTED, pspec);
+
+	signals[SIGNAL_CONNECTED] =
+		g_signal_newv ("connected",
+		               BT_TYPE_PEER,
+		               G_SIGNAL_RUN_LAST,
+		               NULL,
+		               NULL, NULL,
+		               g_cclosure_marshal_VOID__VOID,
+		               G_TYPE_NONE,
+		               0,
+		               NULL);
 }
 
-/**
- * bt_peer_set_choking:
- *
- * Sets if we are choking the other peer.
- */
-
-void
-bt_peer_set_choking (BtPeer *self, gboolean choking)
-{
-	g_return_if_fail (BT_IS_PEER (self));
-
-	self->choking = choking;
-}
-
-/**
- * bt_peer_set_interesting:
- *
- * Sets if we are interested in the other peer, i.e. he is "interesting".
- */
-
-void
-bt_peer_set_interesting (BtPeer *self, gboolean interesting)
-{
-	g_return_if_fail (BT_IS_PEER (self));
-
-	self->interesting = interesting;
-}
-
-gboolean
-bt_peer_get_choking (BtPeer *self)
-{
-	g_return_val_if_fail (BT_IS_PEER (self), -1);
-	return self->choking;
-}
-
-gboolean
-bt_peer_get_interesting (BtPeer *self)
-{
-	g_return_val_if_fail (BT_IS_PEER (self), -1);
-	return self->interesting;
-}
-
-gboolean
-bt_peer_get_choked (BtPeer *self)
-{
-	g_return_val_if_fail (BT_IS_PEER (self), -1);
-	return self->choked;
-}
-
-gboolean
-bt_peer_get_interested (BtPeer *self)
-{
-	g_return_val_if_fail (BT_IS_PEER (self), -1);
-	return self->interested;
-}
-
-
-gboolean
-bt_peer_check (BtPeer *self)
-{
-	g_return_val_if_fail (BT_IS_PEER (self), FALSE);
-	return FALSE;
-}
-
-static void
-bt_peer_receive (BtPeer *self, gchar *buf, gsize len)
-{
-	g_return_if_fail (BT_IS_PEER (self));
-
-	if (len == 0) {
-		g_debug ("connection closed");
-		return;
-	}
-
-	g_string_append_len (self->buffer, buf, len);
-	self->pos += len;
-
-	gnet_conn_read (self->socket);
-	return;
-}
-
-static void
-bt_peer_connection_callback (GConn *connection G_GNUC_UNUSED, GConnEvent *event, BtPeer *self)
-{
-	g_return_if_fail (BT_IS_PEER (self));
-
-	switch (event->type) {
-	case GNET_CONN_ERROR:
-		g_warning ("connection error");
-		break;
-
-	case GNET_CONN_CONNECT:
-		g_debug ("connected");
-		self->status = BT_PEER_STATUS_CONNECTED_SEND;
-		break;
-
-	case GNET_CONN_READ:
-		bt_peer_receive (self, event->buffer, event->length);
-		break;
-
-	case GNET_CONN_WRITE:
-		break;
-
-	default:
-		break;
-	}
-
-	return;
-}
-
-void
-bt_peer_connect (BtPeer *self)
-{
-	self->status = BT_PEER_STATUS_CONNECTING;
-	gnet_conn_connect (self->socket);
-}
+/* TODO: put this into a constructor */
 
 BtPeer *
 bt_peer_new (BtManager *manager, BtTorrent *torrent, GTcpSocket *socket, GInetAddr *address)

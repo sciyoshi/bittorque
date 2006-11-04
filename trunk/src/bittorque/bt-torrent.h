@@ -12,20 +12,11 @@ G_BEGIN_DECLS
 #define BT_TORRENT(obj)    (G_TYPE_CHECK_INSTANCE_CAST ((obj), BT_TYPE_TORRENT, BtTorrent))
 #define BT_IS_TORRENT(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), BT_TYPE_TORRENT))
 
-#define BT_TYPE_TORRENT_TRACKER_STATUS (bt_torrent_tracker_status_get_type ())
-
 typedef struct _BtTorrent      BtTorrent;
 typedef struct _BtTorrentClass BtTorrentClass;
 
 #include "bt-peer.h"
 #include "bt-bencode.h"
-
-typedef enum {
-	BT_TORRENT_TRACKER_STATUS_IDLE,
-	BT_TORRENT_TRACKER_STATUS_RESOLVING,
-	BT_TORRENT_TRACKER_STATUS_CONNECTING,
-	BT_TORRENT_TRACKER_STATUS_ANNOUNCING
-} BtTorrentTrackerStatus;
 
 struct _BtTorrent {
 	GObject    parent;
@@ -42,7 +33,6 @@ struct _BtTorrent {
 	gsize      piece_length;
 	GSList    *files;
 
-	BtTorrentTrackerStatus tracker_status;
 	GConnHttp *tracker_socket;
 	guint      tracker_current_tier;
 	guint      tracker_current_tracker;
@@ -64,7 +54,6 @@ struct _BtTorrentClass {
 };
 
 GType      bt_torrent_get_type ();
-GType      bt_torrent_tracker_status_get_type ();
 
 BtTorrent *bt_torrent_new (BtManager *manager, gchar *filename, GError **error);
 

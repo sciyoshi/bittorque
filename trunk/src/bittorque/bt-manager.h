@@ -32,6 +32,8 @@ struct _BtManager {
 	gushort       port;
 
 	gchar        *private_dir;
+
+	BtPreferences preferences;
 };
 
 struct _BtManagerClass {

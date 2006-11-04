@@ -82,7 +82,8 @@ main (int argc, char *argv[])
 		app.xml = glade_xml_new (DATADIR "/bittorque.glade", NULL, NULL);
 	else if (g_file_test ("bittorque.glade", G_FILE_TEST_EXISTS))
 		app.xml = glade_xml_new ("bittorque.glade", NULL, NULL);
-	else {
+
+	if (!app.xml) {
 		g_error ("couldn't find bittorque.glade");
 		return 1;
 	}
