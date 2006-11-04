@@ -24,7 +24,138 @@ enum {
 
 static guint signals[SIGNAL_LAST] = {0};
 
-static void bt_manager_new_connection_callback (BtManager *self, GTcpSocket *client, gpointer data);
+static void
+bt_manager_new_connection_callback (BtManager *self, GTcpSocket* client, gpointer data G_GNUC_UNUSED)
+{
+	GInetAddr *addr;
+	gushort    port;
+	gchar     *name;
+
+	g_return_if_fail (BT_IS_MANAGER (self));
+
+	g_return_if_fail (client);
+
+	addr = gnet_tcp_socket_get_remote_inetaddr (client);
+	name = gnet_inetaddr_get_canonical_name (addr);
+	port = gnet_inetaddr_get_port (addr);
+
+	g_debug ("connection received from %s, port %d", name, port);
+
+	g_free (name);
+	gnet_inetaddr_delete (addr);
+
+	bt_peer_new (self, NULL, client, NULL);
+
+	return;
+}
+
+static void
+bt_manager_accept_callback (GTcpSocket* server G_GNUC_UNUSED, GTcpSocket* client, BtManager *self)
+{
+	g_return_if_fail (BT_IS_MANAGER (self));
+
+	if (!client) {
+		g_warning ("could not accept connection");
+		return;
+	}
+
+	g_signal_emit (self, signals[SIGNAL_NEW_CONNECTION], 0, client);
+
+	return;
+}
+
+gboolean
+bt_manager_accept_start (BtManager *self, GError **error)
+{
+	g_return_val_if_fail (BT_IS_MANAGER (self), FALSE);
+
+	self->accept_socket = gnet_tcp_socket_server_new_with_port (self->port);
+
+	if (!self->accept_socket) {
+		g_set_error (error, BT_ERROR, BT_ERROR_NETWORK, "could not set up listening socket");
+		return FALSE;
+	}
+
+	gnet_tcp_socket_server_accept_async (self->accept_socket, (GTcpSocketAcceptFunc) bt_manager_accept_callback, self);
+
+	return TRUE;
+}
+
+void
+bt_manager_accept_stop (BtManager *self)
+{
+	g_return_if_fail (BT_IS_MANAGER (self));
+
+	gnet_tcp_socket_delete (self->accept_socket);
+
+	self->accept_socket = NULL;
+}
+
+guint
+bt_manager_add_source (BtManager *self, GSource *source)
+{
+	return g_source_attach (source, self->context);
+}
+
+gboolean
+bt_manager_set_port (BtManager *self, gushort port, GError **error)
+{
+	gboolean running;
+
+	if (self->port == port)
+		return TRUE;
+
+	running = self->accept_socket != NULL ? TRUE : FALSE;
+
+	if (running)
+		bt_manager_accept_stop (self);
+
+	self->port = port;
+
+	if (running)
+		if (!bt_manager_accept_start (self, error))
+			return FALSE;
+
+	return TRUE;
+}
+
+gushort
+bt_manager_get_port (BtManager *self)
+{
+	return self->port;
+}
+
+void
+bt_manager_add_torrent (BtManager *self, BtTorrent *torrent)
+{
+	g_hash_table_insert (self->torrents, torrent->infohash_string, g_object_ref (torrent));
+}
+
+BtTorrent *
+bt_manager_get_torrent (BtManager *self, gchar *infohash)
+{
+	gchar string[41];
+	bt_hash_to_string (infohash, string);
+	return bt_manager_get_torrent_string (self, string);
+}
+
+BtTorrent *
+bt_manager_get_torrent_string (BtManager *self, gchar *infohash)
+{
+	return (BtTorrent *) g_hash_table_lookup (self->torrents, infohash);
+}
+
+BtManager *
+bt_manager_new ()
+{
+	return bt_manager_new_with_main (NULL);
+}
+
+BtManager *
+bt_manager_new_with_main (GMainContext *context)
+{
+	return BT_MANAGER (g_object_new (BT_TYPE_MANAGER, "context", context, NULL));
+}
 
 static void
 bt_manager_set_property (GObject *object, guint property, const GValue *value, GParamSpec *pspec G_GNUC_UNUSED)
@@ -149,9 +280,9 @@ static void
 bt_manager_class_init (BtManagerClass *klass)
 {
 	GObjectClass *gclass;
-	GParamSpec *pspec;
-	GClosure *closure;
-	GType params[1];
+	GParamSpec   *pspec;
+	GClosure     *closure;
+	GType         params[1];
 
 	if (!g_thread_supported ())
 		g_thread_init (NULL);
@@ -211,145 +342,4 @@ bt_manager_class_init (BtManagerClass *klass)
 		               G_TYPE_NONE,
 		               1,
 		               params);
-}
-
-static void
-bt_manager_new_connection_callback (BtManager *self, GTcpSocket* client, gpointer data G_GNUC_UNUSED)
-{
-	GInetAddr *addr;
-	gushort    port;
-	gchar     *name;
-
-	g_return_if_fail (BT_IS_MANAGER (self));
-
-	g_return_if_fail (client);
-
-	addr = gnet_tcp_socket_get_remote_inetaddr (client);
-	name = gnet_inetaddr_get_canonical_name (addr);
-	port = gnet_inetaddr_get_port (addr);
-
-	g_debug ("connection received from %s, port %d", name, port);
-
-	g_free (name);
-	gnet_inetaddr_delete (addr);
-
-	bt_peer_new (self, NULL, client, NULL);
-
-	return;
-}
-
-static void
-bt_manager_accept_callback (GTcpSocket* server G_GNUC_UNUSED, GTcpSocket* client, BtManager *self)
-{
-	g_return_if_fail (BT_IS_MANAGER (self));
-
-	if (!client) {
-		g_warning ("could not accept connection");
-		return;
-	}
-
-	g_signal_emit (self, signals[SIGNAL_NEW_CONNECTION], 0, client);
-
-	return;
-}
-
-gboolean
-bt_manager_accept_start (BtManager *self, GError **error)
-{
-	g_return_val_if_fail (BT_IS_MANAGER (self), FALSE);
-
-	self->accept_socket = gnet_tcp_socket_server_new_with_port (self->port);
-
-	if (!self->accept_socket) {
-		g_set_error (error, BT_ERROR, BT_ERROR_NETWORK, "could not set up listening socket");
-		return FALSE;
-	}
-
-	gnet_tcp_socket_server_accept_async (self->accept_socket, (GTcpSocketAcceptFunc) bt_manager_accept_callback, self);
-
-	return TRUE;
-}
-
-void
-bt_manager_accept_stop (BtManager *self)
-{
-	g_return_if_fail (BT_IS_MANAGER (self));
-
-	gnet_tcp_socket_delete (self->accept_socket);
-
-	self->accept_socket = NULL;
-}
-
-
-guint
-bt_manager_add_source (BtManager *self, GSource *source)
-{
-	return g_source_attach (source, self->context);
-}
-
-/**
- * bt_manager_set_port:
- *
- * Set the port that this manager should listen on for peer connections. If the manager is already
- * running, it will be restarted.
- */
-
-gboolean
-bt_manager_set_port (BtManager *self, gushort port, GError **error)
-{
-	gboolean running;
-
-	if (self->port == port)
-		return TRUE;
-
-	running = self->accept_socket != NULL ? TRUE : FALSE;
-
-	if (running)
-		bt_manager_accept_stop (self);
-
-	self->port = port;
-
-	if (running)
-		if (!bt_manager_accept_start (self, error))
-			return FALSE;
-
-	return TRUE;
-}
-
-gushort
-bt_manager_get_port (BtManager *self)
-{
-	return self->port;
-}
-
-void
-bt_manager_add_torrent (BtManager *self, BtTorrent *torrent)
-{
-	g_hash_table_insert (self->torrents, torrent->infohash_string, g_object_ref (torrent));
-}
-
-BtTorrent *
-bt_manager_get_torrent (BtManager *self, gchar *infohash)
-{
-	gchar string[41];
-	bt_hash_to_string (infohash, string);
-	return bt_manager_get_torrent_string (self, string);
-}
-
-BtTorrent *
-bt_manager_get_torrent_string (BtManager *self, gchar *infohash)
-{
-	return (BtTorrent *) g_hash_table_lookup (self->torrents, infohash);
-}
-
-BtManager *
-bt_manager_new ()
-{
-	return bt_manager_new_with_main (NULL);
-}
-
-BtManager *
-bt_manager_new_with_main (GMainContext *context)
-{
-	return BT_MANAGER (g_object_new (BT_TYPE_MANAGER, "context", context, NULL));
 }

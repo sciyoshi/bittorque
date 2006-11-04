@@ -11,126 +11,11 @@
 
 G_DEFINE_TYPE (BtTorrent, bt_torrent, G_TYPE_OBJECT)
 
-static const GEnumValue bt_torrent_tracker_status_values[] = {
-	{BT_TORRENT_TRACKER_STATUS_IDLE, "BT_TORRENT_TRACKER_STATUS_IDLE", "idle"},
-	{BT_TORRENT_TRACKER_STATUS_RESOLVING, "BT_TORRENT_TRACKER_STATUS_RESOLVING", "resolving"},
-	{BT_TORRENT_TRACKER_STATUS_CONNECTING, "BT_TORRENT_TRACKER_STATUS_CONNECTING", "connecting"},
-	{BT_TORRENT_TRACKER_STATUS_ANNOUNCING, "BT_TORRENT_TRACKER_STATUS_ANNOUNCING", "announcing"}
-};
-
-GType
-bt_torrent_tracker_status_get_type ()
-{
-	static GType type = 0;
-
-	if (G_UNLIKELY (type == 0))
-		type = g_enum_register_static ("BtTorrentTrackerStatus", bt_torrent_tracker_status_values);
-
-	return type;
-}
-
 enum {
 	PROP_0,
-	PROP_NAME
+	PROP_NAME,
+	PROP_SIZE
 };
-
-static void
-bt_torrent_set_property (GObject *object, guint property, const GValue *value G_GNUC_UNUSED, GParamSpec *pspec G_GNUC_UNUSED)
-{
-	BtTorrent *self G_GNUC_UNUSED = BT_TORRENT (object);
-
-	switch (property) {
-
-	}
-}
-
-static void
-bt_torrent_get_property (GObject *object, guint property, GValue *value, GParamSpec *pspec G_GNUC_UNUSED)
-{
-	BtTorrent *self = BT_TORRENT (object);
-
-	switch (property) {
-	case PROP_NAME:
-		g_value_set_string (value, self->name);
-	}
-}
-
-static void
-bt_torrent_init (BtTorrent *torrent)
-{
-	torrent->manager = NULL;
-	torrent->announce = NULL;
-	torrent->announce_list = NULL;
-	torrent->name = NULL;
-	torrent->size = 0;
-	torrent->piece_length = 0;
-	torrent->files = NULL;
-	torrent->check_peers_source = NULL;
-	torrent->announce_source = NULL;
-	torrent->announce_start = NULL;
-	torrent->tracker_status = BT_TORRENT_TRACKER_STATUS_IDLE;
-	torrent->tracker_current_tier = 0;
-	torrent->tracker_current_tracker = 0;
-	torrent->tracker_socket = NULL;
-	torrent->tracker_interval = -1;
-	torrent->tracker_min_interval = -1;
-	torrent->tracker_id = NULL;
-	torrent->cache = g_string_sized_new (1024);
-}
-
-static void
-bt_torrent_dispose (GObject *torrent)
-{
-	BtTorrent *self = BT_TORRENT (torrent);
-
-	if (self->manager == NULL)
-		return;
-
-	g_object_unref (self->manager);
-	self->manager = NULL;
-
-	((GObjectClass *) bt_torrent_parent_class)->dispose (torrent);
-}
-
-static void
-bt_torrent_finalize (GObject *torrent)
-{
-	BtTorrent *self = BT_TORRENT (torrent);
-
-	if (self->tracker_socket)
-		bt_torrent_announce_stop (self);
-
-	g_free (self->tracker_id);
-	g_free (self->announce);
-	g_free (self->name);
-	g_string_free (self->cache, TRUE);
-
-	((GObjectClass *) bt_torrent_parent_class)->finalize (torrent);
-}
-
-static void
-bt_torrent_class_init (BtTorrentClass *klass)
-{
-	GObjectClass *gclass;
-	GParamSpec *pspec;
-
-	gclass = G_OBJECT_CLASS (klass);
-
-	gclass->set_property = bt_torrent_set_property;
-	gclass->get_property = bt_torrent_get_property;
-	gclass->finalize     = bt_torrent_finalize;
-	gclass->dispose      = bt_torrent_dispose;
-
-	pspec = g_param_spec_string ("name",
-	                             "torrent name",
-	                             "The torrent's name, from the .torrent file",
-	                             "",
-	                             G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
-
-	g_object_class_install_property (gclass, PROP_NAME, pspec);
-}
-
-
 
 /**
  * bt_torrent_parse_file:
@@ -289,7 +174,6 @@ bt_torrent_parse_file (BtTorrent *self, gchar *filename, GError **error)
 	}
 
 	bt_bencode_destroy (metainfo);
-
 	return TRUE;
 
 cleanup:
@@ -329,6 +213,118 @@ bt_torrent_add_peer (BtTorrent *self, BtPeer *peer)
 	self->peers = g_slist_prepend (self->peers, g_object_ref (peer));
 
 	return TRUE;
+}
+
+
+
+static void
+bt_torrent_set_property (GObject *object, guint property, const GValue *value G_GNUC_UNUSED, GParamSpec *pspec G_GNUC_UNUSED)
+{
+	BtTorrent *self G_GNUC_UNUSED = BT_TORRENT (object);
+
+	switch (property) {
+
+	}
+}
+
+static void
+bt_torrent_get_property (GObject *object, guint property, GValue *value, GParamSpec *pspec G_GNUC_UNUSED)
+{
+	BtTorrent *self = BT_TORRENT (object);
+
+	switch (property) {
+	case PROP_NAME:
+		g_value_set_string (value, self->name);
+		break;
+
+	case PROP_SIZE:
+		g_value_set_uint64 (value, self->size);
+		break;
+	}
+}
+
+static void
+bt_torrent_init (BtTorrent *torrent)
+{
+	torrent->manager = NULL;
+	torrent->announce = NULL;
+	torrent->announce_list = NULL;
+	torrent->name = NULL;
+	torrent->size = 0;
+	torrent->piece_length = 0;
+	torrent->files = NULL;
+	torrent->check_peers_source = NULL;
+	torrent->announce_source = NULL;
+	torrent->announce_start = NULL;
+	torrent->tracker_current_tier = 0;
+	torrent->tracker_current_tracker = 0;
+	torrent->tracker_socket = NULL;
+	torrent->tracker_interval = -1;
+	torrent->tracker_min_interval = -1;
+	torrent->tracker_id = NULL;
+	torrent->cache = g_string_sized_new (1024);
+}
+
+static void
+bt_torrent_dispose (GObject *torrent)
+{
+	BtTorrent *self = BT_TORRENT (torrent);
+
+	if (self->manager == NULL)
+		return;
+
+	g_object_unref (self->manager);
+	self->manager = NULL;
+
+	((GObjectClass *) bt_torrent_parent_class)->dispose (torrent);
+}
+
+static void
+bt_torrent_finalize (GObject *torrent)
+{
+	BtTorrent *self = BT_TORRENT (torrent);
+
+	if (self->tracker_socket)
+		bt_torrent_announce_stop (self);
+
+	g_free (self->tracker_id);
+	g_free (self->announce);
+	g_free (self->name);
+	g_string_free (self->cache, TRUE);
+
+	((GObjectClass *) bt_torrent_parent_class)->finalize (torrent);
+}
+
+static void
+bt_torrent_class_init (BtTorrentClass *klass)
+{
+	GObjectClass *gclass;
+	GParamSpec *pspec;
+
+	gclass = G_OBJECT_CLASS (klass);
+
+	gclass->set_property = bt_torrent_set_property;
+	gclass->get_property = bt_torrent_get_property;
+	gclass->finalize     = bt_torrent_finalize;
+	gclass->dispose      = bt_torrent_dispose;
+
+	pspec = g_param_spec_string ("name",
+	                             "torrent name",
+	                             "The torrent's name, from the .torrent file",
+	                             "",
+	                             G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+
+	g_object_class_install_property (gclass, PROP_NAME, pspec);
+
+	pspec = g_param_spec_uint64 ("size",
+	                             "torrent size",
+	                             "The size of the torrent in bytes",
+	                             0,
+	                             G_MAXUINT64,
+	                             0,
+	                             G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+
+	g_object_class_install_property (gclass, PROP_SIZE, pspec);
 }
 
 

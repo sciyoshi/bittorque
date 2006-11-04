@@ -24,7 +24,8 @@ typedef enum {
 	BT_PEER_STATUS_CONNECTING,
 	BT_PEER_STATUS_CONNECTED_SEND,
 	BT_PEER_STATUS_CONNECTED_WAIT,
-	BT_PEER_STATUS_HANDSHAKE,
+	BT_PEER_STATUS_SEND_HANDSHAKE,
+	BT_PEER_STATUS_WAIT_HANDSHAKE,
 	BT_PEER_STATUS_HANDSHAKE_PEER_ID,
 	BT_PEER_STATUS_DISCONNECTING,
 	BT_PEER_STATUS_DISCONNECTED,
@@ -58,7 +59,6 @@ struct _BtPeerClass {
 
 GType    bt_peer_get_type ();
 GType    bt_peer_status_get_type ();
-GType    bt_peer_send_status_get_type ();
 
 void     bt_peer_set_choking (BtPeer *self, gboolean choked);
 
@@ -73,6 +73,8 @@ gboolean bt_peer_get_choked (BtPeer *self);
 gboolean bt_peer_get_interested (BtPeer *self);
 
 BtPeer  *bt_peer_new (BtManager *manager, BtTorrent *torrent, GTcpSocket *socket, GInetAddr *address);
+
+void     bt_peer_receive (BtPeer *peer, gchar *buffer, gsize length);
 
 G_END_DECLS
 
