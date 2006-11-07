@@ -1,5 +1,6 @@
 #include <gtk/gtk.h>
 #include <glade/glade.h>
+#include <gnet.h>
 
 #include "bittorque.h"
 
@@ -53,6 +54,8 @@ open_dialog_add_file (gchar *filename)
 	bt_manager_add_torrent (app.manager, torrent);
 
 	bt_torrent_start_downloading (torrent);
+
+	bt_peer_connect (bt_peer_new (app.manager, torrent, NULL, gnet_inetaddr_new_nonblock ("127.0.0.1", 6552)));
 
 	gtk_list_store_append (list, &iter);
 	gtk_list_store_set (list, &iter, 0, torrent, -1);

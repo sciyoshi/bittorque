@@ -309,11 +309,19 @@ bt_torrent_class_init (BtTorrentClass *klass)
 	gclass->finalize = bt_torrent_finalize;
 	gclass->dispose = bt_torrent_dispose;
 
-	pspec = g_param_spec_string ("name", "torrent name", "The torrent's name, from the .torrent file", "", G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+	pspec = g_param_spec_string ("name",
+	                             "torrent name",
+	                             "The torrent's name, from the .torrent file",
+	                             "",
+	                             G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
 
 	g_object_class_install_property (gclass, PROP_NAME, pspec);
 
-	pspec = g_param_spec_uint64 ("size", "torrent size", "The size of the torrent in bytes", 0, G_MAXUINT64, 0, G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+	pspec = g_param_spec_uint64 ("size",
+	                             "torrent size",
+	                             "The size of the torrent in bytes",
+	                             0, G_MAXUINT64, 0,
+	                             G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
 
 	g_object_class_install_property (gclass, PROP_SIZE, pspec);
 }

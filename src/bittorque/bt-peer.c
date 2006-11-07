@@ -107,9 +107,22 @@ bt_peer_check (BtPeer *self)
 static void
 bt_peer_init_connection (BtPeer *self)
 {
+	GError *error = NULL;
+	gint encryption;
+
 	g_return_if_fail (BT_IS_PEER (self));
 
-	
+	encryption = g_key_file_get_integer (self->manager->preferences, "protocol", "encryption", &error);
+
+	if (error != NULL) {
+		g_warning ("couldn't get preference for encryption, falling back to default: %s", error->message);
+		g_clear_error (&error);
+		encryption = 1;
+	}
+
+	if (encryption == 1 || encryption == 2) {
+		bt_peer_send_handshake (self);
+	}
 }
 
 static void
@@ -306,7 +319,7 @@ bt_peer_class_init (BtPeerClass *klass)
 		               G_TYPE_NONE, 0, NULL);
 }
 
-/* TODO: put this into a constructor */
+/* FIXME: put this into a constructor */
 
 BtPeer *
 bt_peer_new (BtManager *manager, BtTorrent *torrent, GTcpSocket *socket, GInetAddr *address)
@@ -315,8 +328,7 @@ bt_peer_new (BtManager *manager, BtTorrent *torrent, GTcpSocket *socket, GInetAd
 
 	g_return_val_if_fail (BT_IS_MANAGER (manager), NULL);
 
-	g_return_val_if_fail ((torrent && !socket && address)
-			      || (!torrent && socket && !address), NULL);
+	g_return_val_if_fail ((torrent && !socket && address) || (!torrent && socket && !address), NULL);
 
 	self = BT_PEER (g_object_new (BT_TYPE_PEER, NULL));
 
