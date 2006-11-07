@@ -73,7 +73,11 @@ gboolean bt_peer_get_interested (BtPeer *self);
 
 BtPeer  *bt_peer_new (BtManager *manager, BtTorrent *torrent, GTcpSocket *socket, GInetAddr *address);
 
+void     bt_peer_connect (BtPeer *self);
+
 void     bt_peer_receive (BtPeer *peer, gchar *buffer, gsize length);
+
+void     bt_peer_send_handshake (BtPeer *self);
 
 G_END_DECLS
 

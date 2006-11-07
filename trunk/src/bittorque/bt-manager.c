@@ -198,7 +198,10 @@ bt_manager_set_property (GObject *object, guint property, const GValue *value, G
 		self->preferences = g_value_get_pointer (value);
 		if (!self->preferences) {
 			self->preferences = g_key_file_new ();
-			/* FIXME: load default configuration from system directory */
+			if (!g_key_file_load_from_file (self->preferences, DATADIR "/bittorque.cfg", G_KEY_FILE_KEEP_COMMENTS, &error)) {
+				g_warning ("could not find default manager preferences: %s", error->message);
+				g_clear_error (&error);
+			}
 		}
 		break;
 
