@@ -12,6 +12,7 @@ G_DEFINE_TYPE (BtManager, bt_manager, G_TYPE_OBJECT)
 enum {
 	PROP_0,
 	PROP_CONTEXT,
+	PROP_PREFERENCES,
 	PROP_PORT,
 	PROP_PEER_ID,
 	PROP_PRIVATE_DIR
@@ -22,14 +23,14 @@ enum {
 	SIGNAL_LAST
 };
 
-static guint signals[SIGNAL_LAST] = {0};
+static guint signals[SIGNAL_LAST] = { 0 };
 
 static void
-bt_manager_new_connection_callback (BtManager *self, GTcpSocket* client, gpointer data G_GNUC_UNUSED)
+bt_manager_new_connection_callback (BtManager *self, GTcpSocket *client, gpointer data G_GNUC_UNUSED)
 {
 	GInetAddr *addr;
-	gushort    port;
-	gchar     *name;
+	gushort port;
+	gchar *name;
 
 	g_return_if_fail (BT_IS_MANAGER (self));
 
@@ -50,7 +51,7 @@ bt_manager_new_connection_callback (BtManager *self, GTcpSocket* client, gpointe
 }
 
 static void
-bt_manager_accept_callback (GTcpSocket* server G_GNUC_UNUSED, GTcpSocket* client, BtManager *self)
+bt_manager_accept_callback (GTcpSocket *server G_GNUC_UNUSED, GTcpSocket *client, BtManager *self)
 {
 	g_return_if_fail (BT_IS_MANAGER (self));
 
@@ -76,7 +77,8 @@ bt_manager_accept_start (BtManager *self, GError **error)
 		return FALSE;
 	}
 
-	gnet_tcp_socket_server_accept_async (self->accept_socket, (GTcpSocketAcceptFunc) bt_manager_accept_callback, self);
+	gnet_tcp_socket_server_accept_async (self->accept_socket, (GTcpSocketAcceptFunc)
+					     bt_manager_accept_callback, self);
 
 	return TRUE;
 }
@@ -146,15 +148,27 @@ bt_manager_get_torrent_string (BtManager *self, gchar *infohash)
 }
 
 BtManager *
+bt_manager_new_with_main_preferences (GMainContext *context, GKeyFile *preferences)
+{
+	return BT_MANAGER (g_object_new (BT_TYPE_MANAGER, "context", context, "preferences", preferences, NULL));
+}
+
+BtManager *
 bt_manager_new ()
 {
-	return bt_manager_new_with_main (NULL);
+	return bt_manager_new_with_main_preferences (NULL, NULL);
+}
+
+BtManager *
+bt_manager_new_with_preferences (GKeyFile *preferences)
+{
+	return bt_manager_new_with_main_preferences (NULL, preferences);
 }
 
 BtManager *
 bt_manager_new_with_main (GMainContext *context)
 {
-	return BT_MANAGER (g_object_new (BT_TYPE_MANAGER, "context", context, NULL));
+	return bt_manager_new_with_main_preferences (context, NULL);
 }
 
 static void
@@ -178,6 +192,14 @@ bt_manager_set_property (GObject *object, guint property, const GValue *value, G
 		self->context = g_value_get_pointer (value);
 		if (self->context)
 			g_main_context_ref (self->context);
+		break;
+
+	case PROP_PREFERENCES:
+		self->preferences = g_value_get_pointer (value);
+		if (!self->preferences) {
+			self->preferences = g_key_file_new ();
+			/* FIXME: load default configuration from system directory */
+		}
 		break;
 
 	case PROP_PEER_ID:
@@ -206,6 +228,10 @@ bt_manager_get_property (GObject *object, guint property, GValue *value, GParamS
 		break;
 
 	case PROP_CONTEXT:
+		g_value_set_pointer (value, self->context);
+		break;
+
+	case PROP_PREFERENCES:
 		g_value_set_pointer (value, self->context);
 		break;
 
@@ -273,6 +299,10 @@ bt_manager_dispose (GObject *manager)
 static void
 bt_manager_finalize (GObject *manager)
 {
+	BtManager *self = BT_MANAGER (manager);
+
+	g_key_file_free (self->preferences);
+
 	((GObjectClass *) bt_manager_parent_class)->finalize (manager);
 }
 
@@ -280,9 +310,9 @@ static void
 bt_manager_class_init (BtManagerClass *klass)
 {
 	GObjectClass *gclass;
-	GParamSpec   *pspec;
-	GClosure     *closure;
-	GType         params[1];
+	GParamSpec *pspec;
+	GClosure *closure;
+	GType params[1];
 
 	if (!g_thread_supported ())
 		g_thread_init (NULL);
@@ -291,9 +321,9 @@ bt_manager_class_init (BtManagerClass *klass)
 
 	gclass->set_property = bt_manager_set_property;
 	gclass->get_property = bt_manager_get_property;
-	gclass->finalize     = bt_manager_finalize;
-	gclass->dispose      = bt_manager_dispose;
-	gclass->constructor  = bt_manager_constructor;
+	gclass->finalize = bt_manager_finalize;
+	gclass->dispose = bt_manager_dispose;
+	gclass->constructor = bt_manager_constructor;
 
 	pspec = g_param_spec_pointer ("context",
 	                              "main context",
@@ -302,12 +332,17 @@ bt_manager_class_init (BtManagerClass *klass)
 
 	g_object_class_install_property (gclass, PROP_CONTEXT, pspec);
 
+	pspec = g_param_spec_pointer ("preferences",
+	                              "torrent manager preferences",
+	                              "A pointer to a GKeyFile storing manager preferences.",
+	                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+
+	g_object_class_install_property (gclass, PROP_PREFERENCES, pspec);
+
 	pspec = g_param_spec_uint ("port",
 	                           "accept port",
-	                           "The port to use to listen for peer connections on.",
-	                           0,
-	                           G_MAXUSHORT,
-	                           6881,
+	                           "The port to use to listen for peer connections on.", 
+	                           0, G_MAXUSHORT, 6881,
 	                           G_PARAM_READWRITE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
 
 	g_object_class_install_property (gclass, PROP_PORT, pspec);
@@ -336,10 +371,5 @@ bt_manager_class_init (BtManagerClass *klass)
 		g_signal_newv ("new-connection",
 		               BT_TYPE_MANAGER,
 		               G_SIGNAL_RUN_LAST,
-		               closure,
-		               NULL, NULL,
-		               g_cclosure_marshal_VOID__POINTER,
-		               G_TYPE_NONE,
-		               1,
-		               params);
+		               closure, NULL, NULL, g_cclosure_marshal_VOID__POINTER, G_TYPE_NONE, 1, params);
 }

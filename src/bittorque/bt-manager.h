@@ -13,8 +13,8 @@ G_BEGIN_DECLS
 #define BT_MANAGER_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST ((klass), BT_TYPE_MANAGER, BtManagerClass))
 #define BT_IS_MANAGER(obj)      (G_TYPE_CHECK_INSTANCE_TYPE ((obj), BT_TYPE_MANAGER))
 
-typedef struct _BtManager       BtManager;
-typedef struct _BtManagerClass  BtManagerClass;
+typedef struct _BtManager      BtManager;
+typedef struct _BtManagerClass BtManagerClass;
 
 #include "bt-torrent.h"
 
@@ -33,7 +33,7 @@ struct _BtManager {
 
 	gchar        *private_dir;
 
-	BtPreferences preferences;
+	GKeyFile     *preferences;
 };
 
 struct _BtManagerClass {
@@ -58,5 +58,4 @@ BtTorrent *bt_manager_get_torrent (BtManager *self, gchar *infohash);
 BtTorrent *bt_manager_get_torrent_string (BtManager *self, gchar *infohash);
 
 G_END_DECLS
-
 #endif

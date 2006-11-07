@@ -19,3 +19,9 @@ should do the trick. Then type
 scons
 
 from the command line to build everything.
+
+== Contributing ==
+
+Code should be indented with (approximately)
+
+indent -kr -ts8 -i8 -pcs -l300

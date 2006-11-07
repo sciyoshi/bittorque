@@ -8,44 +8,15 @@
 #include "bt-bencode.h"
 #include "bt-utils.h"
 
-static GString *_bencode (BtBencode *data, GString **string);
-
 #define BT_BENCODE_ERROR_TEXT "syntax error in bencoded dict: %s"
 
-
-void
-bt_bencode_destroy (BtBencode *data)
-{
-	g_return_if_fail (data != NULL);
-
-	switch (data->type) {
-	case BT_BENCODE_TYPE_STRING:
-		g_string_free (data->value.string, TRUE);
-		break;
-
-	case BT_BENCODE_TYPE_LIST:
-		g_slist_foreach (data->value.list, (GFunc) bt_bencode_destroy, NULL);
-		g_slist_free (data->value.list);
-		break;
-
-	case BT_BENCODE_TYPE_DICT:
-		g_tree_destroy (data->value.dict);
-		break;
-
-	case BT_BENCODE_TYPE_INT:
-		break;
-	}
-
-	g_slice_free (BtBencode, data);
-}
-
-
+static GString *_bt_bencode_encode (BtBencode *data, GString **string);
 
 static BtBencode *
-_bdecode (const gchar *buf, const gchar **end, GError **error)
+_bt_bencode_decode (const gchar *buf, const gchar **end, GError **error)
 {
-	BtBencode *data = NULL;
-	const gchar *tmp = NULL;
+	BtBencode   *data = NULL;
+	const gchar *tmp  = NULL;
 
 	if (end == NULL)
 		end = &tmp;
@@ -93,7 +64,7 @@ _bdecode (const gchar *buf, const gchar **end, GError **error)
 		while (**end != 'e') {
 			BtBencode *key, *val;
 
-			key = _bdecode (*end, end, error);
+			key = _bt_bencode_decode (*end, end, error);
 
 			if (key == NULL) {
 				g_tree_destroy (dict);
@@ -106,7 +77,7 @@ _bdecode (const gchar *buf, const gchar **end, GError **error)
 				return NULL;
 			}
 
-			val = _bdecode (*end, end, error);
+			val = _bt_bencode_decode (*end, end, error);
 
 			if (val == NULL) {
 				bt_bencode_destroy (key);
@@ -133,7 +104,7 @@ _bdecode (const gchar *buf, const gchar **end, GError **error)
 		*end = buf + 1;
 
 		while (**end != 'e') {
-			BtBencode *val = _bdecode (*end, end, error);
+			BtBencode *val = _bt_bencode_decode (*end, end, error);
 
 			if (val == NULL) {
 				g_slist_foreach (list, (GFunc) bt_bencode_destroy, NULL);
@@ -157,18 +128,16 @@ _bdecode (const gchar *buf, const gchar **end, GError **error)
 	return NULL;
 }
 
-
 static gboolean
-_bencode_key_val (gchar *key, BtBencode *val, GString **string)
+_bt_bencode_encode_key_val (gchar *key, BtBencode *val, GString **string)
 {
 	g_string_append_printf (*string, "%d:%s", strlen (key), key);
-	*string = _bencode (val, string);
+	*string = _bt_bencode_encode (val, string);
 	return FALSE;
 }
 
-
 static GString *
-_bencode (BtBencode *data, GString **string)
+_bt_bencode_encode (BtBencode *data, GString **string)
 {
 	GString *str;
 
@@ -189,13 +158,13 @@ _bencode (BtBencode *data, GString **string)
 
 	case BT_BENCODE_TYPE_DICT:
 		*string = g_string_append_c (*string, 'd');
-		g_tree_foreach(data->value.dict, (GTraverseFunc) _bencode_key_val, (gpointer) string);
+		g_tree_foreach (data->value.dict, (GTraverseFunc) _bt_bencode_encode_key_val, (gpointer) string);
 		*string = g_string_append_c (*string, 'e');
 		break;
 
 	case BT_BENCODE_TYPE_LIST:
 		*string = g_string_append_c (*string, 'l');
-		g_slist_foreach(data->value.list, (GFunc) _bencode, (gpointer) string);
+		g_slist_foreach (data->value.list, (GFunc) _bt_bencode_encode, (gpointer) string);
 		*string = g_string_append_c (*string, 'e');
 		break;
 	}
@@ -203,16 +172,59 @@ _bencode (BtBencode *data, GString **string)
 	return *string;
 }
 
+/**
+ * bt_bencode_destroy:
+ *
+ * Frees all resources associated with the bencoded data.
+ */
+
+void
+bt_bencode_destroy (BtBencode *data)
+{
+	g_return_if_fail (data != NULL);
+
+	switch (data->type) {
+	case BT_BENCODE_TYPE_STRING:
+		g_string_free (data->value.string, TRUE);
+		break;
+
+	case BT_BENCODE_TYPE_LIST:
+		g_slist_foreach (data->value.list, (GFunc) bt_bencode_destroy, NULL);
+		g_slist_free (data->value.list);
+		break;
+
+	case BT_BENCODE_TYPE_DICT:
+		g_tree_destroy (data->value.dict);
+		break;
+
+	case BT_BENCODE_TYPE_INT:
+		break;
+	}
+
+	g_slice_free (BtBencode, data);
+}
+
+/**
+ * bt_bencode_decode:
+ *
+ * Decodes the given string into a BtBencode structure.
+ */
 
 BtBencode *
 bt_bencode_decode (const gchar *buf, GError **error)
 {
-	return _bdecode (buf, NULL, error);
+	return _bt_bencode_decode (buf, NULL, error);
 }
 
+
+/**
+ * bt_bencode_encode:
+ *
+ * Encodes the given BtBencode structure into a GString
+ */
 
 GString *
 bt_bencode_encode (BtBencode *data)
 {
-	return _bencode (data, NULL);
+	return _bt_bencode_encode (data, NULL);
 }

@@ -8,11 +8,10 @@
 
 G_BEGIN_DECLS
 
-#define BT_TYPE_PEER    (bt_peer_get_type ())
-#define BT_PEER(obj)    (G_TYPE_CHECK_INSTANCE_CAST ((obj), BT_TYPE_PEER, BtPeer))
-#define BT_IS_PEER(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), BT_TYPE_PEER))
-
-#define BT_TYPE_PEER_STATUS      (bt_peer_status_get_type ())
+#define BT_TYPE_PEER        (bt_peer_get_type ())
+#define BT_PEER(obj)        (G_TYPE_CHECK_INSTANCE_CAST ((obj), BT_TYPE_PEER, BtPeer))
+#define BT_IS_PEER(obj)     (G_TYPE_CHECK_INSTANCE_TYPE ((obj), BT_TYPE_PEER))
+#define BT_TYPE_PEER_STATUS (bt_peer_status_get_type ())
 
 typedef struct _BtPeer      BtPeer;
 typedef struct _BtPeerClass BtPeerClass;
@@ -26,7 +25,6 @@ typedef enum {
 	BT_PEER_STATUS_CONNECTED_WAIT,
 	BT_PEER_STATUS_SEND_HANDSHAKE,
 	BT_PEER_STATUS_WAIT_HANDSHAKE,
-	BT_PEER_STATUS_HANDSHAKE_PEER_ID,
 	BT_PEER_STATUS_DISCONNECTING,
 	BT_PEER_STATUS_DISCONNECTED,
 	BT_PEER_STATUS_IDLE_HAVE,
@@ -34,23 +32,24 @@ typedef enum {
 } BtPeerStatus;
 
 struct _BtPeer {
-	GObject       parent;
+	GObject parent;
 
-	BtManager    *manager;
-	BtTorrent    *torrent;
-	BtPeerStatus  status;
-	GConn        *socket;
-	GInetAddr    *address;
+	BtManager *manager;
+	BtTorrent *torrent;
+	GConn     *socket;
+	GInetAddr *address;
 
-	GString      *buffer;
-	gsize         pos;
+	BtPeerStatus status;
 
-	gchar        *bitmask;
+	GString   *buffer;
+	gsize      pos;
 
-	gboolean      choking;
-	gboolean      interesting;
-	gboolean      choked;
-	gboolean      interested;
+	gchar     *bitmask;
+
+	gboolean   choking;
+	gboolean   interesting;
+	gboolean   choked;
+	gboolean   interested;
 };
 
 struct _BtPeerClass {

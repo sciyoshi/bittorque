@@ -20,7 +20,7 @@ bt_torrent_announce_http_parse_response (BtTorrent *self, const gchar *buf)
 	error = NULL;
 
 	if (!(response = bt_bencode_decode (buf, &error))) {
-		g_warning ("could not decode tracker response: %s", error->message);	
+		g_warning ("could not decode tracker response: %s", error->message);
 		g_clear_error (&error);
 		return FALSE;
 	}
@@ -114,15 +114,15 @@ bt_torrent_announce_http (BtTorrent *self, gchar *announce)
 	tmp = bt_url_encode (self->infohash, 20);
 
 	query = g_strdup_printf ("%s?info_hash=%s&peer_id=%s&port=%d&uploaded=%d&downloaded=%d&left=%d&compact=1&event=%s&numwant=%d",
-		announce,
-		tmp,
-		self->manager->peer_id,
-		bt_manager_get_port (self->manager),
-		0,
-		0,
-		self->size,
-		"started",
-		30);
+	                         announce,
+	                         tmp,
+	                         self->manager->peer_id,
+	                         bt_manager_get_port (self->manager),
+	                         0,
+	                         0,
+	                         self->size,
+	                         "started",
+	                         30);
 
 	g_debug ("hitting tracker with query %s", query);
 
