@@ -1,3 +1,4 @@
 Import('*')
 
-env.SConscript(['bittorque/SConscript', 'frontend/SConscript'])
+env.SConscript('bittorque/SConscript')
+env.SConscript('frontend/SConscript')
