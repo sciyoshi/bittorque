@@ -11,7 +11,6 @@ static const GEnumValue bt_peer_status_values[] = {
 	{BT_PEER_STATUS_CONNECTED_WAIT, "BT_PEER_STATUS_CONNECTED_WAIT", "connected_wait"},
 	{BT_PEER_STATUS_SEND_HANDSHAKE, "BT_PEER_STATUS_SEND_HANDSHAKE", "send_handshake"},
 	{BT_PEER_STATUS_WAIT_HANDSHAKE, "BT_PEER_STATUS_WAIT_HANDSHAKE", "wait_handshake"},
-	{BT_PEER_STATUS_HANDSHAKE_PEER_ID, "BT_PEER_STATUS_HANDSHAKE_PEER_ID", "handshake_peer_id"},
 	{BT_PEER_STATUS_DISCONNECTING, "BT_PEER_STATUS_DISCONNECTING", "disconnecting"},
 	{BT_PEER_STATUS_DISCONNECTED, "BT_PEER_STATUS_DISCONNECTED", "disconnected"},
 	{BT_PEER_STATUS_IDLE_HAVE, "BT_PEER_STATUS_IDLE_HAVE", "idle_have"},
@@ -42,7 +41,7 @@ enum {
 	SIGNAL_LAST
 };
 
-static guint signals[SIGNAL_LAST] = {0};
+static guint signals[SIGNAL_LAST] = { 0 };
 
 /**
  * bt_peer_set_choking:
@@ -51,7 +50,7 @@ static guint signals[SIGNAL_LAST] = {0};
  */
 
 void
-bt_peer_set_choking (BtPeer *self, gboolean choking)
+bt_peer_set_choking (BtPeer * self, gboolean choking)
 {
 	g_return_if_fail (BT_IS_PEER (self));
 	self->choking = choking;
@@ -98,12 +97,19 @@ bt_peer_get_interested (BtPeer *self)
 	return self->interested;
 }
 
-
 gboolean
 bt_peer_check (BtPeer *self)
 {
 	g_return_val_if_fail (BT_IS_PEER (self), FALSE);
 	return FALSE;
+}
+
+static void
+bt_peer_init_connection (BtPeer *self)
+{
+	g_return_if_fail (BT_IS_PEER (self));
+
+	
 }
 
 static void
@@ -120,6 +126,7 @@ bt_peer_connection_callback (GConn *connection G_GNUC_UNUSED, GConnEvent *event,
 		g_debug ("connected to peer");
 		self->status = BT_PEER_STATUS_CONNECTED_SEND;
 		g_signal_emit (self, signals[SIGNAL_CONNECTED], 0);
+		bt_peer_init_connection (self);
 		break;
 
 	case GNET_CONN_READ:
@@ -197,7 +204,7 @@ static GObject *
 bt_peer_constructor (GType type, guint num, GObjectConstructParam *properties)
 {
 	GObject *object;
-	BtPeer  *self;
+	BtPeer *self;
 
 	object = G_OBJECT_CLASS (bt_peer_parent_class)->constructor (type, num, properties);
 	self = BT_PEER (object);
@@ -248,45 +255,45 @@ static void
 bt_peer_class_init (BtPeerClass *klass)
 {
 	GObjectClass *gclass;
-	GParamSpec   *pspec;
+	GParamSpec *pspec;
 
 	gclass = G_OBJECT_CLASS (klass);
 
 	gclass->set_property = bt_peer_set_property;
 	gclass->get_property = bt_peer_get_property;
-	gclass->finalize     = bt_peer_finalize;
-	gclass->dispose      = bt_peer_dispose;
-	gclass->constructor  = bt_peer_constructor;
+	gclass->finalize = bt_peer_finalize;
+	gclass->dispose = bt_peer_dispose;
+	gclass->constructor = bt_peer_constructor;
 
 	pspec = g_param_spec_boolean ("choking",
-	                             "choking peer",
-	                             "TRUE if we are choking the peer",
-	                             TRUE,
-	                             G_PARAM_READWRITE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+	                              "choking peer",
+	                              "TRUE if we are choking the peer",
+	                              TRUE,
+	                              G_PARAM_READWRITE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
 
 	g_object_class_install_property (gclass, PROP_CHOKING, pspec);
 
 	pspec = g_param_spec_boolean ("interesting",
-	                             "interested in peer",
-	                             "TRUE if we are interested in the peer, i.e. he is \"interesting\"",
-	                             FALSE,
-	                             G_PARAM_READWRITE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+	                              "interested in peer",
+	                              "TRUE if we are interested in the peer, i.e. he is \"interesting\"",
+	                              FALSE,
+	                              G_PARAM_READWRITE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
 
 	g_object_class_install_property (gclass, PROP_INTERESTING, pspec);
 
 	pspec = g_param_spec_boolean ("choked",
-	                             "choked by peer",
-	                             "TRUE if we are being choked by the peer",
-	                             TRUE,
-	                             G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+	                              "choked by peer",
+	                              "TRUE if we are being choked by the peer",
+	                              TRUE,
+	                              G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
 
 	g_object_class_install_property (gclass, PROP_CHOKED, pspec);
 
 	pspec = g_param_spec_boolean ("interested",
-	                             "peer is interested in us",
-	                             "TRUE if the peer is interested in downloading from us",
-	                             FALSE,
-	                             G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+	                              "peer is interested in us",
+	                              "TRUE if the peer is interested in downloading from us",
+	                              FALSE,
+	                              G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
 
 	g_object_class_install_property (gclass, PROP_INTERESTED, pspec);
 
@@ -294,12 +301,9 @@ bt_peer_class_init (BtPeerClass *klass)
 		g_signal_newv ("connected",
 		               BT_TYPE_PEER,
 		               G_SIGNAL_RUN_LAST,
-		               NULL,
-		               NULL, NULL,
+		               NULL, NULL, NULL,
 		               g_cclosure_marshal_VOID__VOID,
-		               G_TYPE_NONE,
-		               0,
-		               NULL);
+		               G_TYPE_NONE, 0, NULL);
 }
 
 /* TODO: put this into a constructor */
@@ -311,7 +315,8 @@ bt_peer_new (BtManager *manager, BtTorrent *torrent, GTcpSocket *socket, GInetAd
 
 	g_return_val_if_fail (BT_IS_MANAGER (manager), NULL);
 
-	g_return_val_if_fail ((torrent && !socket && address) || (!torrent && socket && !address), NULL);
+	g_return_val_if_fail ((torrent && !socket && address)
+			      || (!torrent && socket && !address), NULL);
 
 	self = BT_PEER (g_object_new (BT_TYPE_PEER, NULL));
 

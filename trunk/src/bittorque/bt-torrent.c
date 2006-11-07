@@ -118,7 +118,8 @@ bt_torrent_parse_file (BtTorrent *self, gchar *filename, GError **error)
 		goto cleanup;
 	if (!piece_length || piece_length->type != BT_BENCODE_TYPE_INT)
 		goto cleanup;
-	if ((length && length->type != BT_BENCODE_TYPE_INT) || (files && files->type != BT_BENCODE_TYPE_LIST))
+	if ((length && length->type != BT_BENCODE_TYPE_INT)
+	    || (files && files->type != BT_BENCODE_TYPE_LIST))
 		goto cleanup;
 
 	self->piece_length = (guint32) piece_length->value.value;
@@ -176,7 +177,7 @@ bt_torrent_parse_file (BtTorrent *self, gchar *filename, GError **error)
 	bt_bencode_destroy (metainfo);
 	return TRUE;
 
-cleanup:
+      cleanup:
 	g_set_error (error, BT_ERROR, BT_ERROR_INVALID_TORRENT, "invalid torrent file");
 	bt_bencode_destroy (metainfo);
 	return FALSE;
@@ -305,24 +306,14 @@ bt_torrent_class_init (BtTorrentClass *klass)
 
 	gclass->set_property = bt_torrent_set_property;
 	gclass->get_property = bt_torrent_get_property;
-	gclass->finalize     = bt_torrent_finalize;
-	gclass->dispose      = bt_torrent_dispose;
+	gclass->finalize = bt_torrent_finalize;
+	gclass->dispose = bt_torrent_dispose;
 
-	pspec = g_param_spec_string ("name",
-	                             "torrent name",
-	                             "The torrent's name, from the .torrent file",
-	                             "",
-	                             G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+	pspec = g_param_spec_string ("name", "torrent name", "The torrent's name, from the .torrent file", "", G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
 
 	g_object_class_install_property (gclass, PROP_NAME, pspec);
 
-	pspec = g_param_spec_uint64 ("size",
-	                             "torrent size",
-	                             "The size of the torrent in bytes",
-	                             0,
-	                             G_MAXUINT64,
-	                             0,
-	                             G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+	pspec = g_param_spec_uint64 ("size", "torrent size", "The size of the torrent in bytes", 0, G_MAXUINT64, 0, G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
 
 	g_object_class_install_property (gclass, PROP_SIZE, pspec);
 }

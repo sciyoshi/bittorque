@@ -2,9 +2,7 @@
 
 #include "rc4.h"
 
-
 #define swap(x, y) { guchar __swap = (x); (x) = (y); (y) = __swap; }
-
 
 void
 rc4_prepare (RC4Context *rc4, const gchar *key, gsize len)
@@ -27,10 +25,10 @@ rc4_prepare (RC4Context *rc4, const gchar *key, gsize len)
 	}
 }
 
- 
+
 void
 rc4_cipher (RC4Context *rc4, gchar *buf, gsize len)
-{ 
+{
 	gsize i;
 
 	guchar x, y, xor;

@@ -25,7 +25,7 @@ gboolean
 bt_infohash (BtBencode *info, gchar hash[20])
 {
 	SHA1Context sha;
-	GString    *string;
+	GString *string;
 
 	g_return_val_if_fail (info != NULL && hash != NULL, FALSE);
 
@@ -43,10 +43,10 @@ gboolean
 bt_create_peer_id (gchar id[21])
 {
 	SHA1Context sha;
-	pid_t       pid;
-	GTimeVal    t;
-	gchar       tmp[20];
-	guint       i;
+	pid_t pid;
+	GTimeVal t;
+	gchar tmp[20];
+	guint i;
 
 	g_return_val_if_fail (id != NULL, FALSE);
 
@@ -54,10 +54,10 @@ bt_create_peer_id (gchar id[21])
 
 	g_snprintf (id, 21, "-TO%02d%02d-", 0, 1);
 	sha1_init (&sha);
-	sha1_update (&sha, (gchar *) &pid, sizeof (pid_t));
+	sha1_update (&sha, (gchar *) & pid, sizeof (pid_t));
 
-	g_get_current_time(&t);
-	sha1_update (&sha, (gchar *) &t, sizeof (GTimeVal));
+	g_get_current_time (&t);
+	sha1_update (&sha, (gchar *) & t, sizeof (GTimeVal));
 	sha1_finish (&sha, tmp);
 
 	for (i = 8; i < 20; i++)
@@ -71,7 +71,7 @@ gchar *
 bt_url_encode (const gchar *string, gsize size)
 {
 	gchar *ret;
-	gsize  len, i;
+	gsize len, i;
 
 	len = 0;
 	ret = g_malloc0 (size * 3 + 1);
