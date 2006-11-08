@@ -2,6 +2,8 @@
 
 #include "bt-peer.h"
 #include "bt-utils.h"
+#include "bt-marshallers.h"
+#include "bt-peer-encryption.h"
 
 G_DEFINE_TYPE (BtPeer, bt_peer, G_TYPE_OBJECT)
 
@@ -38,6 +40,7 @@ enum {
 
 enum {
 	SIGNAL_CONNECTED,
+	SIGNAL_DATA_READ,
 	SIGNAL_LAST
 };
 
@@ -105,7 +108,7 @@ bt_peer_check (BtPeer *self)
 }
 
 static void
-bt_peer_init_connection (BtPeer *self)
+bt_peer_connected (BtPeer *self)
 {
 	GError *error = NULL;
 	gint encryption;
@@ -123,6 +126,10 @@ bt_peer_init_connection (BtPeer *self)
 	if (encryption == 1 || encryption == 2) {
 		bt_peer_send_handshake (self);
 	}
+
+	if (encryption == 3 || encryption == 4) {
+		bt_peer_encryption_init (self);
+	}
 }
 
 static void
@@ -139,11 +146,10 @@ bt_peer_connection_callback (GConn *connection G_GNUC_UNUSED, GConnEvent *event,
 		g_debug ("connected to peer");
 		self->status = BT_PEER_STATUS_CONNECTED_SEND;
 		g_signal_emit (self, signals[SIGNAL_CONNECTED], 0);
-		bt_peer_init_connection (self);
 		break;
 
 	case GNET_CONN_READ:
-		bt_peer_receive (self, event->buffer, event->length);
+		g_signal_emit (self, signals[SIGNAL_DATA_READ], 0, event->buffer, event->length);
 		break;
 
 	case GNET_CONN_WRITE:
@@ -269,6 +275,8 @@ bt_peer_class_init (BtPeerClass *klass)
 {
 	GObjectClass *gclass;
 	GParamSpec *pspec;
+	GClosure *closure;
+	GType params[2];
 
 	gclass = G_OBJECT_CLASS (klass);
 
@@ -310,13 +318,28 @@ bt_peer_class_init (BtPeerClass *klass)
 
 	g_object_class_install_property (gclass, PROP_INTERESTED, pspec);
 
+	closure = g_cclosure_new (G_CALLBACK (bt_peer_connected), NULL, NULL);
+
 	signals[SIGNAL_CONNECTED] =
 		g_signal_newv ("connected",
 		               BT_TYPE_PEER,
 		               G_SIGNAL_RUN_LAST,
-		               NULL, NULL, NULL,
+		               closure, NULL, NULL,
 		               g_cclosure_marshal_VOID__VOID,
 		               G_TYPE_NONE, 0, NULL);
+
+	params[0] = G_TYPE_POINTER;
+	params[1] = G_TYPE_UINT;
+
+	closure = g_cclosure_new (G_CALLBACK (bt_peer_receive), NULL, NULL);
+
+	signals[SIGNAL_DATA_READ] =
+		g_signal_newv ("data-read",
+		               BT_TYPE_PEER,
+		               G_SIGNAL_RUN_LAST,
+		               closure, NULL, NULL,
+		               bt_cclosure_marshal_VOID__POINTER_UINT,
+		               G_TYPE_NONE, 2, params);
 }
 
 /* FIXME: put this into a constructor */
@@ -337,6 +360,7 @@ bt_peer_new (BtManager *manager, BtTorrent *torrent, GTcpSocket *socket, GInetAd
 	if (socket) {
 		self->socket = gnet_conn_new_socket (socket, (GConnFunc) bt_peer_connection_callback, self);
 		self->address = gnet_tcp_socket_get_remote_inetaddr (socket);
+		self->torrent = NULL;
 		self->status = BT_PEER_STATUS_CONNECTED_WAIT;
 		gnet_conn_read (self->socket);
 	} else {

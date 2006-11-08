@@ -69,7 +69,7 @@ env = conf.Finish()
 env.ParseConfig('pkg-config --cflags --libs glib-2.0 gobject-2.0 gthread-2.0 gnet-2.0')
 env.Append(CCFLAGS=['-g', '-Wall', '-Wextra', '-ansi'])
 env.Append(CPPDEFINES=['-DGNET_EXPERIMENTAL'])
-env.Append(CPPDEFINES=['-DDATADIR=\\"/home/user/scormi3/Projects/bittorque/data\\"'])
+env.Append(CPPDEFINES=['-DDATADIR=\\"/home/sciyoshi/Build/bittorque/bittorque/data\\"'])
 env.Append(CPPPATH=[])
 
 envpy = env.Copy()

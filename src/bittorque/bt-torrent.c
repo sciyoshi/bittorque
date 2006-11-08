@@ -177,7 +177,7 @@ bt_torrent_parse_file (BtTorrent *self, gchar *filename, GError **error)
 	bt_bencode_destroy (metainfo);
 	return TRUE;
 
-      cleanup:
+  cleanup:
 	g_set_error (error, BT_ERROR, BT_ERROR_INVALID_TORRENT, "invalid torrent file");
 	bt_bencode_destroy (metainfo);
 	return FALSE;

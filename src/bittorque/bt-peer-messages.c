@@ -10,7 +10,7 @@ bt_peer_send_handshake (BtPeer *self)
 
 	g_return_if_fail (BT_IS_PEER (self) && BT_IS_TORRENT (self->torrent));
 
-	buf[0] = '\19';
+	buf[0] = (char) 19;
 
 	memcpy (buf + 1, "BitTorrent protocol", 19);
 
@@ -39,7 +39,7 @@ bt_peer_parse_handshake (BtPeer *self, GError **error G_GNUC_UNUSED)
 
 	buf = self->buffer->str;
 
-	if (buf[0] != '\19')
+	if (buf[0] != (char) 19)
 		goto bad;
 
 	if (strncmp (buf + 1, "BitTorrent protocol", 19) != 0)
@@ -49,7 +49,7 @@ bt_peer_parse_handshake (BtPeer *self, GError **error G_GNUC_UNUSED)
 
 	if (!self->torrent) {
 		g_set_error (error, BT_ERROR, BT_ERROR_PEER_HANDSHAKE, "connection received for torrent we are not serving");
-		goto bad;
+		return FALSE;
 	}
 
 	g_object_ref (self->torrent);
@@ -71,7 +71,7 @@ bt_peer_parse_handshake (BtPeer *self, GError **error G_GNUC_UNUSED)
 }
 
 void
-bt_peer_receive (BtPeer *self, gchar *buf, gsize len)
+bt_peer_receive (BtPeer *self, gchar *buf, gsize len, gpointer data G_GNUC_UNUSED)
 {
 	GError *error = NULL;
 
@@ -84,8 +84,6 @@ bt_peer_receive (BtPeer *self, gchar *buf, gsize len)
 
 	g_string_append_len (self->buffer, buf, len);
 	self->pos += len;
-
-	g_print ("%s\n", self->buffer->str);
 
 	switch (self->status) {
 	case BT_PEER_STATUS_CONNECTED_WAIT:
