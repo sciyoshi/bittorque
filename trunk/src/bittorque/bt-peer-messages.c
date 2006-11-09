@@ -28,7 +28,7 @@ bt_peer_send_handshake (BtPeer *self)
 }
 
 gboolean
-bt_peer_parse_handshake (BtPeer *self, GError **error G_GNUC_UNUSED)
+bt_peer_parse_handshake (BtPeer *self, GError **error)
 {
 	gchar *buf;
 
@@ -90,7 +90,7 @@ bt_peer_receive (BtPeer *self, gchar *buf, gsize len, gpointer data G_GNUC_UNUSE
 		if (!bt_peer_parse_handshake (self, &error)) {
 			if (error != NULL) {
 				if (g_error_matches (error, BT_ERROR, BT_ERROR_PEER_HANDSHAKE)) {
-					/* FIXME: try encryption */
+
 				}
 				g_warning (error->message);
 				g_clear_error (&error);
