@@ -111,24 +111,23 @@ static void
 bt_peer_connected (BtPeer *self)
 {
 	GError *error = NULL;
-	gint encryption;
+	BtPeerEncryptionMode encryption;
 
 	g_return_if_fail (BT_IS_PEER (self));
 
-	encryption = g_key_file_get_integer (self->manager->preferences, "protocol", "encryption", &error);
+	encryption = (BtPeerEncryptionMode) g_key_file_get_integer (self->manager->preferences, "Protocol", "OutgoingEncryption", &error);
 
-	if (error != NULL) {
+	if (error != NULL || encryption < BT_PEER_ENCRYPTION_MODE_NONE || encryption > BT_PEER_ENCRYPTION_MODE_ONLY) {
 		g_warning ("couldn't get preference for encryption, falling back to default: %s", error->message);
 		g_clear_error (&error);
-		encryption = 1;
+		encryption = BT_PEER_ENCRYPTION_MODE_NONE;
 	}
 
-	if (encryption == 1 || encryption == 2) {
+	if (encryption == BT_PEER_ENCRYPTION_MODE_NONE) {
 		bt_peer_send_handshake (self);
-	}
-
-	if (encryption == 3 || encryption == 4) {
-		bt_peer_encryption_init (self);
+	} else {
+		/* FIXME: do encryption here */
+		/* bt_peer_encryption_init (self, encryption); */
 	}
 }
 

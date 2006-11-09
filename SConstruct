@@ -64,11 +64,19 @@ if not conf.CheckPKG('gnet-2.0'):
 	print 'gnet-2.0 not found'
 	Exit(1)
 
+if conf.CheckHeader('gcrypt.h'):
+	have_gcrypt = True
+
 env = conf.Finish()
 
 env.ParseConfig('pkg-config --cflags --libs glib-2.0 gobject-2.0 gthread-2.0 gnet-2.0')
 env.Append(CCFLAGS=['-g', '-Wall', '-Wextra', '-ansi'])
 env.Append(CPPDEFINES=['-DGNET_EXPERIMENTAL'])
+
+if have_gcrypt:
+	env.Append(CPPDEFINES=['-DHAVE_GCRYPT_H'])
+	env.ParseConfig('libgcrypt-config --cflags --libs')
+
 env.Append(CPPDEFINES=['-DDATADIR=\\"/home/sciyoshi/Build/bittorque/bittorque/data\\"'])
 env.Append(CPPPATH=[])
 
