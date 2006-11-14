@@ -62,5 +62,7 @@ gboolean   bt_torrent_announce (BtTorrent *torrent);
 
 gboolean   bt_torrent_announce_stop (BtTorrent *self);
 
+gboolean   bt_torrent_add_peer (BtTorrent *self, BtPeer *peer);
+
 G_END_DECLS
 #endif

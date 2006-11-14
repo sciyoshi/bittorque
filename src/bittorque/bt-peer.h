@@ -75,6 +75,8 @@ BtPeer  *bt_peer_new (BtManager *manager, BtTorrent *torrent, GTcpSocket *socket
 
 void     bt_peer_connect (BtPeer *self);
 
+gboolean bt_peer_disconnect (BtPeer *self);
+
 void     bt_peer_receive (BtPeer *peer, gchar *buffer, gsize length, gpointer data);
 
 void     bt_peer_send_handshake (BtPeer *self);

@@ -77,7 +77,7 @@ if have_gcrypt:
 	env.Append(CPPDEFINES=['-DHAVE_GCRYPT_H'])
 	env.ParseConfig('libgcrypt-config --cflags --libs')
 
-env.Append(CPPDEFINES=['-DDATADIR=\\"/home/sciyoshi/Build/bittorque/bittorque/data\\"'])
+env.Append(CPPDEFINES=['-DDATADIR=\\"/home/sciyoshi/Projects/bittorque/data\\"'])
 env.Append(CPPPATH=[])
 
 envpy = env.Copy()
