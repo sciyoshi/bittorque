@@ -213,10 +213,12 @@ bt_torrent_add_peer (BtTorrent *self, BtPeer *peer)
 {
 	self->peers = g_slist_prepend (self->peers, g_object_ref (peer));
 
+	g_debug ("peer added for %s:%d", gnet_inetaddr_get_canonical_name (peer->address), gnet_inetaddr_get_port (peer->address));
+
+	bt_peer_connect (peer);
+
 	return TRUE;
 }
-
-
 
 static void
 bt_torrent_set_property (GObject *object, guint property, const GValue *value G_GNUC_UNUSED, GParamSpec *pspec G_GNUC_UNUSED)
@@ -264,6 +266,7 @@ bt_torrent_init (BtTorrent *torrent)
 	torrent->tracker_min_interval = -1;
 	torrent->tracker_id = NULL;
 	torrent->cache = g_string_sized_new (1024);
+	torrent->peers = NULL;
 }
 
 static void

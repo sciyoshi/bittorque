@@ -13,7 +13,7 @@ static gboolean
 bt_torrent_announce_http_parse_response (BtTorrent *self, const gchar *buf)
 {
 	GError *error;
-	BtBencode *response, *failure, *warning, *interval, *tracker_id;
+	BtBencode *response, *failure, *warning, *interval, *tracker_id, *peers;
 
 	g_return_val_if_fail (BT_IS_TORRENT (self), FALSE);
 
@@ -58,6 +58,26 @@ bt_torrent_announce_http_parse_response (BtTorrent *self, const gchar *buf)
 		self->tracker_id = g_strdup (tracker_id->value.string->str);
 		g_debug ("tracker id: %s", self->tracker_id);
 	}
+
+	peers = bt_bencode_lookup (response, "peers");
+
+	if (peers && peers->type == BT_BENCODE_TYPE_STRING) {
+		int num, i;
+		
+		if (peers->value.string->len % 6 != 0)
+			g_warning ("invalid peers string");
+		
+		num = peers->value.string->len / 6;
+		
+		for (i = 0; i < num; i++) {
+			GInetAddr *address;
+			address = gnet_inetaddr_new_bytes (peers->value.string->str + i * 6, 4);
+			gnet_inetaddr_set_port (address, g_ntohs (*((gushort *) (peers->value.string->str + i * 6 + 4))));
+			bt_torrent_add_peer (self, bt_peer_new (self->manager, self, NULL, address));
+			gnet_inetaddr_unref (address);
+		}
+	}
+
 
 	return TRUE;
 }

@@ -22,7 +22,9 @@ bt_peer_send_handshake (BtPeer *self)
 
 	gnet_conn_write (self->socket, buf, 68);
 
-	self->status = BT_PEER_STATUS_WAIT_HANDSHAKE;
+	if (self->status == BT_PEER_STATUS_CONNECTED_SEND) {
+		gnet_conn_read (self->socket);
+	}
 
 	return;
 }
@@ -56,6 +58,8 @@ bt_peer_parse_handshake (BtPeer *self, GError **error)
 
 	g_string_erase (self->buffer, 0, 48);
 	self->pos -= 48;
+
+	g_debug ("valid handshake received");
 
 	if (self->status == BT_PEER_STATUS_CONNECTED_WAIT) {
 		bt_peer_send_handshake (self);
@@ -94,6 +98,7 @@ bt_peer_receive (BtPeer *self, gchar *buf, gsize len, gpointer data G_GNUC_UNUSE
 				}
 				g_warning (error->message);
 				g_clear_error (&error);
+				bt_idle_source_create (self->manager, (GSourceFunc) bt_peer_disconnect, self);
 			}
 			break;
 		}
@@ -105,6 +110,7 @@ bt_peer_receive (BtPeer *self, gchar *buf, gsize len, gpointer data G_GNUC_UNUSE
 			if (error != NULL) {
 				g_warning (error->message);
 				g_clear_error (&error);
+				bt_idle_source_create (self->manager, (GSourceFunc) bt_peer_disconnect, self);
 			}
 			break;
 		}

@@ -46,6 +46,7 @@ enum {
 
 static guint signals[SIGNAL_LAST] = { 0 };
 
+
 /**
  * bt_peer_set_choking:
  *
@@ -58,6 +59,7 @@ bt_peer_set_choking (BtPeer * self, gboolean choking)
 	g_return_if_fail (BT_IS_PEER (self));
 	self->choking = choking;
 }
+
 
 /**
  * bt_peer_set_interesting:
@@ -72,12 +74,26 @@ bt_peer_set_interesting (BtPeer *self, gboolean interesting)
 	self->interesting = interesting;
 }
 
+
+/**
+ * bt_peer_get_choking:
+ *
+ * Returns if we are choking the other peer or not.
+ */
+ 
 gboolean
 bt_peer_get_choking (BtPeer *self)
 {
 	g_return_val_if_fail (BT_IS_PEER (self), FALSE);
 	return self->choking;
 }
+
+
+/**
+ * bt_peer_get_interesting:
+ *
+ * Returns if we are interested in the other peer.
+ */
 
 gboolean
 bt_peer_get_interesting (BtPeer *self)
@@ -86,12 +102,27 @@ bt_peer_get_interesting (BtPeer *self)
 	return self->interesting;
 }
 
+
+/**
+ * bt_peer_get_choked:
+ *
+ * Returns whether or not the other peer is choking us.
+ */
+
+
 gboolean
 bt_peer_get_choked (BtPeer *self)
 {
 	g_return_val_if_fail (BT_IS_PEER (self), FALSE);
 	return self->choked;
 }
+
+
+/**
+ * bt_peer_get_interested:
+ *
+ * Returns if the peer is interested in us or not.
+ */
 
 gboolean
 bt_peer_get_interested (BtPeer *self)
@@ -100,12 +131,30 @@ bt_peer_get_interested (BtPeer *self)
 	return self->interested;
 }
 
+
+/**
+ * bt_peer_check:
+ *
+ * Check the peers to see who we should optimistically unchoke or choke.
+ */
+
 gboolean
 bt_peer_check (BtPeer *self)
 {
 	g_return_val_if_fail (BT_IS_PEER (self), FALSE);
+	
+	/* FIXME: add peer checking */
+	
 	return FALSE;
 }
+
+
+/**
+ * bt_peer_connected:
+ *
+ * The default handler for when a peer becomes connected. We read the preferences
+ * to see if we should try to connect with encryption or not.
+ */
 
 static void
 bt_peer_connected (BtPeer *self)
@@ -127,9 +176,18 @@ bt_peer_connected (BtPeer *self)
 		bt_peer_send_handshake (self);
 	} else {
 		/* FIXME: do encryption here */
+		bt_peer_send_handshake (self);
 		/* bt_peer_encryption_init (self, encryption); */
 	}
 }
+
+
+/**
+ * bt_peer_connection_callback:
+ *
+ * The callback for all peer events; for when data has been read or written, or the peer has
+ * become connected.
+ */
 
 static void
 bt_peer_connection_callback (GConn *connection G_GNUC_UNUSED, GConnEvent *event, BtPeer *self)
@@ -142,7 +200,7 @@ bt_peer_connection_callback (GConn *connection G_GNUC_UNUSED, GConnEvent *event,
 		break;
 
 	case GNET_CONN_CONNECT:
-		g_debug ("connected to peer");
+		g_debug ("connected to peer %s:%d", gnet_inetaddr_get_canonical_name (self->address), gnet_inetaddr_get_port (self->address));
 		self->status = BT_PEER_STATUS_CONNECTED_SEND;
 		g_signal_emit (self, signals[SIGNAL_CONNECTED], 0);
 		break;
@@ -166,6 +224,14 @@ bt_peer_connect (BtPeer *self)
 {
 	self->status = BT_PEER_STATUS_CONNECTING;
 	gnet_conn_connect (self->socket);
+}
+
+gboolean
+bt_peer_disconnect (BtPeer *self)
+{
+	self->status = BT_PEER_STATUS_DISCONNECTED;
+	gnet_conn_disconnect (self->socket);
+	return FALSE;
 }
 
 static void
@@ -364,6 +430,7 @@ bt_peer_new (BtManager *manager, BtTorrent *torrent, GTcpSocket *socket, GInetAd
 		gnet_conn_read (self->socket);
 	} else {
 		self->address = address;
+		gnet_inetaddr_ref (address);
 		self->socket = gnet_conn_new_inetaddr (address, (GConnFunc) bt_peer_connection_callback, self);
 		self->torrent = g_object_ref (torrent);
 		self->status = BT_PEER_STATUS_DISCONNECTED;
