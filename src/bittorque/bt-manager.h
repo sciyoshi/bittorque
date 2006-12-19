@@ -58,4 +58,5 @@ BtTorrent *bt_manager_get_torrent (BtManager *self, gchar *infohash);
 BtTorrent *bt_manager_get_torrent_string (BtManager *self, gchar *infohash);
 
 G_END_DECLS
+
 #endif

@@ -80,12 +80,6 @@ if have_gcrypt:
 env.Append(CPPDEFINES=['-DDATADIR=\\"/home/sciyoshi/Projects/bittorque/data\\"'])
 env.Append(CPPPATH=[])
 
-envpy = env.Copy()
-envpy.Append(LIBPATH=['#/src/bittorque'])
-envpy.Append(LIBS=['bittorque'])
-envpy.Append(CPPPATH=['/usr/include/python2.4'])
-envpy.ParseConfig('pkg-config --cflags --libs pygobject-2.0')
-
 envlib = env.Copy()
 envlib.Append(CPPDEFINES=['-DG_LOG_DOMAIN=\\"Bittorque\\"'])
 
@@ -97,6 +91,6 @@ envgtk.ParseConfig('pkg-config --cflags --libs gtk+-2.0 libglade-2.0 glib-2.0 gm
 
 #env.DistTar('bittorque', [env.Dir('#')])
 
-Export('env', 'envlib', 'envgtk', 'envpy')
+Export('env', 'envlib', 'envgtk')
 
 SConscript(['src/SConscript'])
