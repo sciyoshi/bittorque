@@ -7,11 +7,12 @@
 #include <gnet.h>
 
 G_BEGIN_DECLS
+
 #define BT_TYPE_TORRENT    (bt_torrent_get_type ())
 #define BT_TORRENT(obj)    (G_TYPE_CHECK_INSTANCE_CAST ((obj), BT_TYPE_TORRENT, BtTorrent))
 #define BT_IS_TORRENT(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), BT_TYPE_TORRENT))
 
-typedef struct _BtTorrent BtTorrent;
+typedef struct _BtTorrent      BtTorrent;
 typedef struct _BtTorrentClass BtTorrentClass;
 
 #include "bt-peer.h"
@@ -65,4 +66,5 @@ gboolean   bt_torrent_announce_stop (BtTorrent *self);
 gboolean   bt_torrent_add_peer (BtTorrent *self, BtPeer *peer);
 
 G_END_DECLS
+
 #endif

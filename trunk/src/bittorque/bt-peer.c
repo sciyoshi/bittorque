@@ -8,27 +8,16 @@
 G_DEFINE_TYPE (BtPeer, bt_peer, G_TYPE_OBJECT)
 
 static const GEnumValue bt_peer_status_values[] = {
-	{BT_PEER_STATUS_CONNECTING, "BT_PEER_STATUS_CONNECTING", "connecting"},
+	{BT_PEER_STATUS_CONNECTING,     "BT_PEER_STATUS_CONNECTING",     "connecting"},
 	{BT_PEER_STATUS_CONNECTED_SEND, "BT_PEER_STATUS_CONNECTED_SEND", "connected_send"},
 	{BT_PEER_STATUS_CONNECTED_WAIT, "BT_PEER_STATUS_CONNECTED_WAIT", "connected_wait"},
 	{BT_PEER_STATUS_SEND_HANDSHAKE, "BT_PEER_STATUS_SEND_HANDSHAKE", "send_handshake"},
 	{BT_PEER_STATUS_WAIT_HANDSHAKE, "BT_PEER_STATUS_WAIT_HANDSHAKE", "wait_handshake"},
-	{BT_PEER_STATUS_DISCONNECTING, "BT_PEER_STATUS_DISCONNECTING", "disconnecting"},
-	{BT_PEER_STATUS_DISCONNECTED, "BT_PEER_STATUS_DISCONNECTED", "disconnected"},
-	{BT_PEER_STATUS_IDLE_HAVE, "BT_PEER_STATUS_IDLE_HAVE", "idle_have"},
-	{BT_PEER_STATUS_IDLE, "BT_PEER_STATUS_IDLE", "idle"}
+	{BT_PEER_STATUS_DISCONNECTING,  "BT_PEER_STATUS_DISCONNECTING",  "disconnecting"},
+	{BT_PEER_STATUS_DISCONNECTED,   "BT_PEER_STATUS_DISCONNECTED",   "disconnected"},
+	{BT_PEER_STATUS_IDLE_HAVE,      "BT_PEER_STATUS_IDLE_HAVE",      "idle_have"},
+	{BT_PEER_STATUS_IDLE,           "BT_PEER_STATUS_IDLE",           "idle"}
 };
-
-GType
-bt_peer_status_get_type ()
-{
-	static GType type = 0;
-
-	if (G_UNLIKELY (type == 0))
-		type = g_enum_register_static ("BtPeerStatus", bt_peer_status_values);
-
-	return type;
-}
 
 enum {
 	PROP_0,
@@ -46,6 +35,17 @@ enum {
 
 static guint signals[SIGNAL_LAST] = { 0 };
 
+
+GType
+bt_peer_status_get_type ()
+{
+	static GType type = 0;
+
+	if (G_UNLIKELY (type == 0))
+		type = g_enum_register_static ("BtPeerStatus", bt_peer_status_values);
+
+	return type;
+}
 
 /**
  * bt_peer_set_choking:
