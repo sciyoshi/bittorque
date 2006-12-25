@@ -1,7 +1,7 @@
 import sys
 
 if len(sys.argv) < 3 or len(sys.argv) > 4:
-	sys.exit('Usage: glade-convert.py [glade-file] [output-file] <variable-name>')
+	sys.exit('Usage: ' + sys.argv[0] + ' [input-file] [output-file] <variable-name>')
 
 input = open(sys.argv[1]).read()
 output = open(sys.argv[2], 'w')
@@ -9,7 +9,7 @@ output = open(sys.argv[2], 'w')
 if len(sys.argv) == 4:
 	variable = sys.argv[3]
 else:
-	variable = 'glade_data'
+	variable = sys.argv[2] + '_data'
 
 output.write('char ' + variable + '[] = {')
 
