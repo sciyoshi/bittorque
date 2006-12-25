@@ -1,4 +1,22 @@
-#include <unistd.h>
+/*
+ * bittorque.c
+ *
+ * Copyright 2006 Samuel Cormier-Iijima <sciyoshi@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
 
 #include "bittorque.h"
 
@@ -27,25 +45,6 @@ create_torrent_toolbutton_clicked (GtkWidget *widget G_GNUC_UNUSED, gpointer dat
 	return;
 }
 
-
-#ifdef USE_GCONF
-
-/**
- * GConf functions
- */
-
-static void
-key_changed (GConfClient *client G_GNUC_UNUSED, const gchar *key, GConfValue *value, gpointer data G_GNUC_UNUSED)
-{
-	if (value->type == GCONF_VALUE_STRING)
-		g_print ("key %s changed to %s\n", key, gconf_value_get_string (value));
-
-	return;
-}
-
-#endif
-
-
 /**
  * Log handler
  */
@@ -56,9 +55,6 @@ log_handler (const gchar *domain, GLogLevelFlags flags, const gchar *message, gp
 	g_log_default_handler (domain, flags, message, data);
 }
 
-
-
-
 /**
  * Main entry point
  */
@@ -66,9 +62,7 @@ log_handler (const gchar *domain, GLogLevelFlags flags, const gchar *message, gp
 int
 main (int argc, char *argv[])
 {
-	GError *error;
-
-	error = NULL;
+	GError *error = NULL;
 
 	/* register our own log handler for all logs */
 	g_log_set_handler (NULL, G_LOG_LEVEL_MASK | G_LOG_FLAG_RECURSION | G_LOG_FLAG_FATAL, log_handler, NULL);
@@ -87,19 +81,6 @@ main (int argc, char *argv[])
 		g_error ("couldn't find bittorque.glade");
 		return 1;
 	}
-
-#ifdef USE_GCONF
-	app.gconf = gconf_client_get_default ();
-
-	gconf_client_add_dir (app.gconf, "/apps/bittorque", GCONF_CLIENT_PRELOAD_NONE, &error);
-
-	if (error) {
-		g_warning ("unable to watch GConf directory");
-		g_clear_error (&error);
-	}
-
-	g_signal_connect (app.gconf, "value_changed", (GCallback) key_changed, &app);
-#endif
 
 	/* create the BtManager */
 	app.manager = bt_manager_new ();
@@ -131,10 +112,6 @@ main (int argc, char *argv[])
 
 	/* stop accepting */
 	bt_manager_accept_stop (app.manager);
-
-#ifdef USE_GCONF
-	g_object_unref (app.gconf);
-#endif
 
 	return 0;
 }
