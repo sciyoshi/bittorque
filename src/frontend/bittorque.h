@@ -22,19 +22,33 @@
 #define __BITTORQUE_H__
 
 #include <glib.h>
+#include <glib/gi18n.h>
 #include <gtk/gtk.h>
 #include <glade/glade.h>
 
 #include "../bittorque/bt-manager.h"
 #include "../bittorque/bt-torrent.h"
 
+G_BEGIN_DECLS
+
 typedef struct {
-	GladeXML      *xml;
 	GtkWidget     *window;
+	
+	/* stuff for the open dialog */
+	GtkWidget     *open_dialog;
+	GtkWidget     *open_dialog_torrents_treeview;
+	GtkWidget     *open_dialog_priority_combobox;
+	GtkWidget     *open_dialog_location_chooser;
+	GtkWidget     *open_dialog_super_seeding_checkbox;
+	
+	
 	GtkStatusIcon *icon;
 	BtManager     *manager;
+	
 } BittorqueApp;
 
 extern BittorqueApp app;
+
+G_END_DECLS
 
 #endif

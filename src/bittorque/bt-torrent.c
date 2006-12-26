@@ -1,3 +1,24 @@
+/*
+ * bt-torrent.c
+ *
+ * Copyright 2006 Samuel Cormier-Iijima <sciyoshi@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
+
+
 #include <string.h>
 #include <stdlib.h>
 
@@ -16,6 +37,23 @@ enum {
 	PROP_NAME,
 	PROP_SIZE
 };
+
+static const GEnumValue bt_torrent_priority_enum_values[] = {
+	{BT_TORRENT_PRIORITY_LOW, "BT_TORRENT_PRIORITY_LOW", "low"},
+	{BT_TORRENT_PRIORITY_NORMAL, "BT_TORRENT_PRIORITY_NORMAL", "normal"},
+	{BT_TORRENT_PRIORITY_HIGH, "BT_TORRENT_PRIORITY_HIGH", "high"}
+};
+
+GType
+bt_torrent_priority_get_type ()
+{
+	static GType type = 0;
+	
+	if (G_UNLIKELY (type == 0))
+		type = g_enum_register_static ("BtTorrentPriority", bt_torrent_priority_enum_values);
+	
+	return type;
+}
 
 /**
  * bt_torrent_parse_file:
@@ -191,7 +229,6 @@ bt_torrent_check_peers (BtTorrent *self)
 	return TRUE;
 }
 
-
 gboolean
 bt_torrent_start_downloading (BtTorrent *self)
 {
@@ -328,7 +365,6 @@ bt_torrent_class_init (BtTorrentClass *klass)
 
 	g_object_class_install_property (gclass, PROP_SIZE, pspec);
 }
-
 
 /**
  * bt_torrent_new:
