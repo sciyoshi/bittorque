@@ -32,7 +32,6 @@ create_torrent_menuitem_activated (GtkWidget *widget G_GNUC_UNUSED, gpointer dat
 	return;
 }
 
-
 void
 quit_menuitem_activated (GtkWidget *widget G_GNUC_UNUSED, gpointer data G_GNUC_UNUSED)
 {
@@ -62,6 +61,7 @@ log_handler (const gchar *domain, GLogLevelFlags flags, const gchar *message, gp
 int
 main (int argc, char *argv[])
 {
+	GladeXML *xml = NULL;
 	GError *error = NULL;
 
 	/* register our own log handler for all logs */
@@ -73,11 +73,11 @@ main (int argc, char *argv[])
 
 	/* look for the glade file, first in DATADIR, then in current directory */
 	if (g_file_test (DATADIR "/bittorque.glade", G_FILE_TEST_EXISTS))
-		app.xml = glade_xml_new (DATADIR "/bittorque.glade", NULL, NULL);
+		xml = glade_xml_new (DATADIR "/bittorque.glade", NULL, NULL);
 	else if (g_file_test ("bittorque.glade", G_FILE_TEST_EXISTS))
-		app.xml = glade_xml_new ("bittorque.glade", NULL, NULL);
+		xml = glade_xml_new ("bittorque.glade", NULL, NULL);
 
-	if (!app.xml) {
+	if (!xml) {
 		g_error ("couldn't find bittorque.glade");
 		return 1;
 	}
@@ -97,13 +97,19 @@ main (int argc, char *argv[])
 	}
 
 	/* autoconnect all our callbacks from the glade file. this is why we need --export-dynamic */
-	glade_xml_signal_autoconnect (app.xml);
+	glade_xml_signal_autoconnect (xml);
 
-	app.window = glade_xml_get_widget (app.xml, "window");
+	app.window = glade_xml_get_widget (xml, "window");
 
 	app.icon = gtk_status_icon_new_from_stock ("gtk-preferences");
 	gtk_status_icon_set_tooltip (app.icon, "BitTorque");
 	gtk_status_icon_set_visible (app.icon, TRUE);
+
+	app.open_dialog = glade_xml_get_widget (xml, "open_dialog");
+	app.open_dialog_torrents_treeview = glade_xml_get_widget (xml, "open_dialog_torrents_treeview");
+	app.open_dialog_priority_combobox = glade_xml_get_widget (xml, "open_dialog_priority_combobox");
+	app.open_dialog_location_chooser = glade_xml_get_widget (xml, "open_dialog_location_chooser");
+	app.open_dialog_super_seeding_checkbox = glade_xml_get_widget (xml, "open_dialog_super_seeding_checkbox");
 
 	/* show the main window */
 	gtk_widget_show (app.window);

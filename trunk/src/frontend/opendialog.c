@@ -18,23 +18,89 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include <glib/gi18n.h>
-
 #include "bittorque.h"
 
+enum {
+	COLUMN_TORRENT,
+	COLUMN_LOCATION,
+	COLUMN_PRIORITY,
+	COLUMN_SUPER_SEEDING,
+	COLUMN_TOTAL
+};
+
 static void
-cell_renderer_func (GtkTreeViewColumn *col G_GNUC_UNUSED, GtkCellRenderer *cell, GtkTreeModel *model, GtkTreeIter *iter, gpointer data G_GNUC_UNUSED)
+open_dialog_cell_renderer_func (GtkTreeViewColumn *col G_GNUC_UNUSED, GtkCellRenderer *cell, GtkTreeModel *model, GtkTreeIter *iter, gpointer data G_GNUC_UNUSED)
 {
 	BtTorrent *torrent;
 
-	gtk_tree_model_get (model, iter, 0, &torrent, -1);
+	gtk_tree_model_get (model, iter, COLUMN_TORRENT, &torrent, -1);
 
 	g_object_set (cell, "text", torrent->name, NULL);
 
 	g_object_unref (torrent);
 }
 
-gboolean
+void
+open_dialog_super_seeding_checkbox_toggled (GtkCheckButton *button, gpointer data G_GNUC_UNUSED)
+{
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	
+	if (gtk_tree_selection_get_selected (gtk_tree_view_get_selection (GTK_TREE_VIEW (app.open_dialog_torrents_treeview)), &model, &iter))
+		gtk_list_store_set (GTK_LIST_STORE (model), &iter, COLUMN_SUPER_SEEDING, gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (button)), -1);
+}
+
+void
+open_dialog_location_chooser_current_folder_changed (GtkFileChooser *chooser, gpointer data G_GNUC_UNUSED)
+{
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	
+	if (gtk_tree_selection_get_selected (gtk_tree_view_get_selection (GTK_TREE_VIEW (app.open_dialog_torrents_treeview)), &model, &iter)) {
+		gchar *filename = gtk_file_chooser_get_filename (chooser);
+		gtk_list_store_set (GTK_LIST_STORE (model), &iter, COLUMN_LOCATION, filename, -1);
+		g_free (filename);
+	}
+}
+
+void
+open_dialog_priority_combobox_changed (GtkComboBox *combobox, gpointer data G_GNUC_UNUSED)
+{
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	
+	if (gtk_tree_selection_get_selected (gtk_tree_view_get_selection (GTK_TREE_VIEW (app.open_dialog_torrents_treeview)), &model, &iter))
+		gtk_list_store_set (GTK_LIST_STORE (model), &iter, COLUMN_PRIORITY, gtk_combo_box_get_active (combobox), -1);
+}
+
+static void
+open_dialog_selection_changed (GtkTreeSelection *selection, gpointer data G_GNUC_UNUSED)
+{
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	gboolean super_seeding;
+	gchar *download_location;
+	BtTorrentPriority priority;
+	
+	if (gtk_tree_selection_get_selected (selection, &model, &iter)) {
+		gtk_widget_set_sensitive (app.open_dialog_location_chooser, TRUE);
+		gtk_widget_set_sensitive (app.open_dialog_priority_combobox, TRUE);
+		gtk_widget_set_sensitive (app.open_dialog_super_seeding_checkbox, TRUE);
+		gtk_tree_model_get (model, &iter, COLUMN_LOCATION, &download_location, COLUMN_PRIORITY, &priority, COLUMN_SUPER_SEEDING, &super_seeding, -1);
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (app.open_dialog_super_seeding_checkbox), super_seeding);
+		gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (app.open_dialog_location_chooser), download_location);
+		gtk_combo_box_set_active (GTK_COMBO_BOX (app.open_dialog_priority_combobox), priority);
+		g_free (download_location);
+	} else {
+		gtk_widget_set_sensitive (app.open_dialog_location_chooser, FALSE);
+		gtk_widget_set_sensitive (app.open_dialog_priority_combobox, FALSE);
+		gtk_widget_set_sensitive (app.open_dialog_super_seeding_checkbox, FALSE);
+		gtk_combo_box_set_active (GTK_COMBO_BOX (app.open_dialog_priority_combobox), -1);
+	}
+	return;
+}
+
+static gboolean
 open_dialog_add_file (gchar *filename)
 {
 	GtkListStore *list;
@@ -45,7 +111,7 @@ open_dialog_add_file (gchar *filename)
 
 	g_return_val_if_fail (filename != NULL, FALSE);
 
-	view = glade_xml_get_widget (app.xml, "open_dialog_torrents_treeview");
+	view = app.open_dialog_torrents_treeview;
 
 	list = GTK_LIST_STORE (gtk_tree_view_get_model (GTK_TREE_VIEW (view)));
 
@@ -58,7 +124,7 @@ open_dialog_add_file (gchar *filename)
 	}
 
 	gtk_list_store_append (list, &iter);
-	gtk_list_store_set (list, &iter, 0, torrent, -1);
+	gtk_list_store_set (list, &iter, COLUMN_TORRENT, torrent, COLUMN_LOCATION, "/home/sciyoshi", COLUMN_PRIORITY, BT_TORRENT_PRIORITY_NORMAL, COLUMN_SUPER_SEEDING, FALSE, -1);
 	g_object_unref (torrent);
 	
 	gtk_tree_selection_select_iter (gtk_tree_view_get_selection (GTK_TREE_VIEW (view)), &iter);
@@ -66,7 +132,7 @@ open_dialog_add_file (gchar *filename)
 	return TRUE;
 }
 
-gchar *
+static gchar *
 open_dialog_show_add_file_dialog ()
 {
 	GtkWidget *dialog;
@@ -112,7 +178,7 @@ open_dialog_remove_clicked (GtkWidget *widget G_GNUC_UNUSED, gpointer data G_GNU
 
 }
 
-void
+static void
 open_dialog_run (gchar *filename)
 {
 	GtkWidget *dialog;
@@ -122,27 +188,29 @@ open_dialog_run (gchar *filename)
 	GtkTreeViewColumn *col;
 	GtkCellRenderer *cell;
 
-	view = glade_xml_get_widget (app.xml, "open_dialog_torrents_treeview");
+	view = app.open_dialog_torrents_treeview;
 
-	list = gtk_list_store_new (1, BT_TYPE_TORRENT);
+	list = gtk_list_store_new (COLUMN_TOTAL, BT_TYPE_TORRENT, G_TYPE_STRING, BT_TYPE_TORRENT_PRIORITY, G_TYPE_BOOLEAN);
 	
 	gtk_tree_view_set_model (GTK_TREE_VIEW (view), GTK_TREE_MODEL (list));
 
 	g_object_unref (list);
 
+	g_signal_connect (gtk_tree_view_get_selection (GTK_TREE_VIEW (view)), "changed", G_CALLBACK (open_dialog_selection_changed), NULL);
+
 	col = gtk_tree_view_column_new ();
-	gtk_tree_view_column_set_title (col, "Name");
+	gtk_tree_view_column_set_title (col, _("Name"));
 	
 	cell = gtk_cell_renderer_text_new ();
 	gtk_tree_view_column_pack_start (col, cell, TRUE);
-	gtk_tree_view_column_set_cell_data_func (col, cell, cell_renderer_func, NULL, NULL);
+	gtk_tree_view_column_set_cell_data_func (col, cell, open_dialog_cell_renderer_func, NULL, NULL);
 	gtk_tree_view_append_column (GTK_TREE_VIEW (view), col);
 
 	if (filename)
 		open_dialog_add_file (filename);
 
-	dialog = glade_xml_get_widget (app.xml, "open_dialog");
-	priority = glade_xml_get_widget (app.xml, "open_dialog_priority_combobox");
+	dialog = app.open_dialog;
+	priority = app.open_dialog_priority_combobox;
 
 	gtk_combo_box_set_active (GTK_COMBO_BOX (priority), 1);
 
@@ -151,7 +219,7 @@ open_dialog_run (gchar *filename)
 	gtk_widget_hide (dialog);
 }
 
-void
+static void
 open_dialog_show_add_dialog_and_run ()
 {
 	gchar *filename = open_dialog_show_add_file_dialog ();

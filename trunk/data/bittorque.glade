@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.0.2 on Sat Dec 23 18:24:35 2006 by sciyoshi@yoshiba
+<!--Generated with glade3 3.0.2 on Mon Dec 25 18:11:23 2006 by sciyoshi@yoshiba
 	Version: 3.0.1
 	Date: Sun Sep 24 02:50:05 2006
 	User: sciyoshi
@@ -9,8 +9,8 @@
 <glade-interface>
   <widget class="GtkWindow" id="window">
     <property name="title" translatable="yes">BitTorque</property>
-    <property name="default_width">500</property>
-    <property name="default_height">400</property>
+    <property name="default_width">600</property>
+    <property name="default_height">450</property>
     <child>
       <widget class="GtkVBox" id="vbox1">
         <property name="visible">True</property>
@@ -142,7 +142,7 @@
         <child>
           <widget class="GtkVPaned" id="vpaned1">
             <property name="visible">True</property>
-            <property name="position">200</property>
+            <property name="position">182</property>
             <property name="position_set">True</property>
             <child>
               <widget class="GtkTreeView" id="torrent_treeview">
@@ -498,7 +498,7 @@
                             <property name="spacing">6</property>
                             <property name="layout_style">GTK_BUTTONBOX_START</property>
                             <child>
-                              <widget class="GtkButton" id="button3">
+                              <widget class="GtkButton" id="">
                                 <property name="visible">True</property>
                                 <property name="label" translatable="yes">gtk-add</property>
                                 <property name="use_stock">True</property>
@@ -559,26 +559,18 @@
                             <property name="n_columns">2</property>
                             <property name="column_spacing">12</property>
                             <child>
-                              <widget class="GtkLabel" id="label10">
+                              <widget class="GtkComboBox" id="open_dialog_priority_combobox">
                                 <property name="visible">True</property>
-                                <property name="xalign">0</property>
-                                <property name="label" translatable="yes">Download location:</property>
-                              </widget>
-                              <packing>
-                                <property name="x_options">GTK_FILL</property>
-                                <property name="y_options">GTK_FILL</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <widget class="GtkFileChooserButton" id="filechooserbutton1">
-                                <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
-                                <property name="visible">True</property>
-                                <property name="title" translatable="yes">Select Download Location</property>
+                                <property name="items" translatable="yes">Low
+Normal
+High</property>
+                                <signal name="changed" handler="open_dialog_priority_combobox_changed"/>
                               </widget>
                               <packing>
                                 <property name="left_attach">1</property>
                                 <property name="right_attach">2</property>
-                                <property name="y_options">GTK_FILL</property>
+                                <property name="top_attach">1</property>
+                                <property name="bottom_attach">2</property>
                               </packing>
                             </child>
                             <child>
@@ -594,17 +586,27 @@
                               </packing>
                             </child>
                             <child>
-                              <widget class="GtkComboBox" id="open_dialog_priority_combobox">
+                              <widget class="GtkFileChooserButton" id="open_dialog_location_chooser">
+                                <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
                                 <property name="visible">True</property>
-                                <property name="items" translatable="yes">Low
-Normal
-High</property>
+                                <property name="title" translatable="yes">Select Download Location</property>
+                                <signal name="current_folder_changed" handler="open_dialog_location_chooser_current_folder_changed"/>
                               </widget>
                               <packing>
                                 <property name="left_attach">1</property>
                                 <property name="right_attach">2</property>
-                                <property name="top_attach">1</property>
-                                <property name="bottom_attach">2</property>
+                                <property name="y_options">GTK_FILL</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkLabel" id="label10">
+                                <property name="visible">True</property>
+                                <property name="xalign">0</property>
+                                <property name="label" translatable="yes">Download location:</property>
+                              </widget>
+                              <packing>
+                                <property name="x_options">GTK_FILL</property>
+                                <property name="y_options">GTK_FILL</property>
                               </packing>
                             </child>
                           </widget>
@@ -617,6 +619,7 @@ High</property>
                             <property name="visible">True</property>
                             <property name="label" translatable="yes">Enable super-seeding</property>
                             <property name="draw_indicator">True</property>
+                            <signal name="toggled" handler="open_dialog_super_seeding_checkbox_toggled"/>
                           </widget>
                           <packing>
                             <property name="expand">False</property>
