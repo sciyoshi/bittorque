@@ -1,4 +1,4 @@
-/*
+/**
  * bittorque.c
  *
  * Copyright 2006 Samuel Cormier-Iijima <sciyoshi@gmail.com>
