@@ -26,8 +26,8 @@
 #include <gtk/gtk.h>
 #include <glade/glade.h>
 
-#include "../bittorque/bt-manager.h"
-#include "../bittorque/bt-torrent.h"
+#include "../libbittorque/bt-manager.h"
+#include "../libbittorque/bt-torrent.h"
 
 G_BEGIN_DECLS
 
