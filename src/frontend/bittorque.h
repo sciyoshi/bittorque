@@ -38,12 +38,7 @@ G_BEGIN_DECLS
 # define BT_EXPORT
 #endif
 
-#define BT_TYPE_APP (bt_app_get_type ())
-#define BT_APP(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), BT_TYPE_APP, BtApp))
-
 typedef struct {
-	GObject        parent;
-	
 	/* the main window */
 	GtkWidget     *window;
 	
@@ -66,13 +61,7 @@ typedef struct {
 	
 } BtApp;
 
-typedef struct {
-	GObjectClass parent;
-} BtAppClass;
-
-extern BtApp *app;
-
-GType bt_app_get_type ();
+extern BtApp app;
 
 G_END_DECLS
 
