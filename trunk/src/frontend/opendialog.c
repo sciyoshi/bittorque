@@ -15,8 +15,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Foundation, Inc., 51 Franklin St,, Fifth Floor, Boston, MA 02110-1301, USA
  */
+
 
 #include "bittorque.h"
 
@@ -40,36 +41,36 @@ open_dialog_cell_renderer_func (GtkTreeViewColumn *col G_GNUC_UNUSED, GtkCellRen
 	g_object_unref (torrent);
 }
 
-void
+BT_EXPORT void
 open_dialog_super_seeding_checkbox_toggled (GtkCheckButton *button, gpointer data G_GNUC_UNUSED)
 {
 	GtkTreeModel *model;
 	GtkTreeIter iter;
 	
-	if (gtk_tree_selection_get_selected (gtk_tree_view_get_selection (GTK_TREE_VIEW (app.open_dialog_torrents_treeview)), &model, &iter))
+	if (gtk_tree_selection_get_selected (gtk_tree_view_get_selection (GTK_TREE_VIEW (app->open_dialog_torrents_treeview)), &model, &iter))
 		gtk_list_store_set (GTK_LIST_STORE (model), &iter, COLUMN_SUPER_SEEDING, gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (button)), -1);
 }
 
-void
+BT_EXPORT void
 open_dialog_location_chooser_current_folder_changed (GtkFileChooser *chooser, gpointer data G_GNUC_UNUSED)
 {
 	GtkTreeModel *model;
 	GtkTreeIter iter;
 	
-	if (gtk_tree_selection_get_selected (gtk_tree_view_get_selection (GTK_TREE_VIEW (app.open_dialog_torrents_treeview)), &model, &iter)) {
+	if (gtk_tree_selection_get_selected (gtk_tree_view_get_selection (GTK_TREE_VIEW (app->open_dialog_torrents_treeview)), &model, &iter)) {
 		gchar *filename = gtk_file_chooser_get_filename (chooser);
 		gtk_list_store_set (GTK_LIST_STORE (model), &iter, COLUMN_LOCATION, filename, -1);
 		g_free (filename);
 	}
 }
 
-void
+BT_EXPORT void
 open_dialog_priority_combobox_changed (GtkComboBox *combobox, gpointer data G_GNUC_UNUSED)
 {
 	GtkTreeModel *model;
 	GtkTreeIter iter;
 	
-	if (gtk_tree_selection_get_selected (gtk_tree_view_get_selection (GTK_TREE_VIEW (app.open_dialog_torrents_treeview)), &model, &iter))
+	if (gtk_tree_selection_get_selected (gtk_tree_view_get_selection (GTK_TREE_VIEW (app->open_dialog_torrents_treeview)), &model, &iter))
 		gtk_list_store_set (GTK_LIST_STORE (model), &iter, COLUMN_PRIORITY, gtk_combo_box_get_active (combobox), -1);
 }
 
@@ -78,26 +79,73 @@ open_dialog_selection_changed (GtkTreeSelection *selection, gpointer data G_GNUC
 {
 	GtkTreeModel *model;
 	GtkTreeIter iter;
+	GtkTreeModel *files_model;
 	gboolean super_seeding;
 	gchar *download_location;
 	BtTorrentPriority priority;
+	BtTorrent *torrent;
 	
-	if (gtk_tree_selection_get_selected (selection, &model, &iter)) {
-		gtk_widget_set_sensitive (app.open_dialog_location_chooser, TRUE);
-		gtk_widget_set_sensitive (app.open_dialog_priority_combobox, TRUE);
-		gtk_widget_set_sensitive (app.open_dialog_super_seeding_checkbox, TRUE);
-		gtk_tree_model_get (model, &iter, COLUMN_LOCATION, &download_location, COLUMN_PRIORITY, &priority, COLUMN_SUPER_SEEDING, &super_seeding, -1);
-		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (app.open_dialog_super_seeding_checkbox), super_seeding);
-		gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (app.open_dialog_location_chooser), download_location);
-		gtk_combo_box_set_active (GTK_COMBO_BOX (app.open_dialog_priority_combobox), priority);
+	files_model = gtk_tree_view_get_model (GTK_TREE_VIEW (app->open_dialog_files_treeview));
+	
+	g_return_if_fail (files_model != NULL);
+	
+	gtk_list_store_clear (GTK_LIST_STORE (files_model));
+	
+	/* if selection is NULL, we were called manually */
+	if (selection != NULL && gtk_tree_selection_get_selected (selection, &model, &iter)) {
+		GtkTreeIter files_iter;
+		guint i;
+		
+		gtk_widget_set_sensitive (app->open_dialog_location_chooser, TRUE);
+		gtk_widget_set_sensitive (app->open_dialog_priority_combobox, TRUE);
+		gtk_widget_set_sensitive (app->open_dialog_super_seeding_checkbox, TRUE);
+		gtk_widget_set_sensitive (app->open_dialog_remove_button, TRUE);
+		gtk_tree_model_get (model, &iter, COLUMN_TORRENT, &torrent, COLUMN_LOCATION, &download_location, COLUMN_PRIORITY, &priority, COLUMN_SUPER_SEEDING, &super_seeding, -1);
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (app->open_dialog_super_seeding_checkbox), super_seeding);
+		gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (app->open_dialog_location_chooser), download_location);
+		gtk_combo_box_set_active (GTK_COMBO_BOX (app->open_dialog_priority_combobox), priority);
+		
+		for (i = 0; i < torrent->files->len; i++) {
+			gtk_list_store_append (GTK_LIST_STORE (files_model), &files_iter);
+			gtk_list_store_set (GTK_LIST_STORE (files_model), &files_iter, 0, &g_array_index (torrent->files, BtTorrentFile, i), -1);
+		}
+		
 		g_free (download_location);
+		g_object_unref (torrent);
 	} else {
-		gtk_widget_set_sensitive (app.open_dialog_location_chooser, FALSE);
-		gtk_widget_set_sensitive (app.open_dialog_priority_combobox, FALSE);
-		gtk_widget_set_sensitive (app.open_dialog_super_seeding_checkbox, FALSE);
-		gtk_combo_box_set_active (GTK_COMBO_BOX (app.open_dialog_priority_combobox), -1);
+		gtk_widget_set_sensitive (app->open_dialog_location_chooser, FALSE);
+		gtk_widget_set_sensitive (app->open_dialog_priority_combobox, FALSE);
+		gtk_widget_set_sensitive (app->open_dialog_super_seeding_checkbox, FALSE);
+		gtk_widget_set_sensitive (app->open_dialog_remove_button, FALSE);
+		gtk_combo_box_set_active (GTK_COMBO_BOX (app->open_dialog_priority_combobox), -1);
+		gtk_list_store_clear (GTK_LIST_STORE (files_model));
 	}
+	
 	return;
+}
+
+static void
+open_dialog_files_name_cell_renderer_func (GtkTreeViewColumn *col G_GNUC_UNUSED, GtkCellRenderer *cell, GtkTreeModel *model, GtkTreeIter *iter, gpointer data G_GNUC_UNUSED)
+{
+	BtTorrentFile *file;
+	
+	gtk_tree_model_get (model, iter, 0, &file, -1);
+	
+	g_object_set (cell, "text", file->name, NULL);
+
+	g_boxed_free (BT_TYPE_TORRENT_FILE, (gpointer) file);
+}
+
+static void
+open_dialog_files_download_cell_renderer_func (GtkTreeViewColumn *col G_GNUC_UNUSED, GtkCellRenderer *cell, GtkTreeModel *model, GtkTreeIter *iter, gpointer data G_GNUC_UNUSED)
+{
+	BtTorrentFile *file;
+	
+	gtk_tree_model_get (model, iter, 0, &file, -1);
+
+	g_object_set (cell, "active", file->download, NULL);
+
+	g_boxed_free (BT_TYPE_TORRENT_FILE, (gpointer) file);
 }
 
 static gboolean
@@ -111,13 +159,13 @@ open_dialog_add_file (gchar *filename)
 
 	g_return_val_if_fail (filename != NULL, FALSE);
 
-	view = app.open_dialog_torrents_treeview;
+	view = app->open_dialog_torrents_treeview;
 
 	list = GTK_LIST_STORE (gtk_tree_view_get_model (GTK_TREE_VIEW (view)));
 
 	error = NULL;
 
-	if (!(torrent = bt_torrent_new (app.manager, filename, &error))) {
+	if (!(torrent = bt_torrent_new (app->manager, filename, &error))) {
 		g_warning ("could not add torrent: %s", error->message);
 		g_clear_error (&error);
 		return FALSE;
@@ -140,7 +188,7 @@ open_dialog_show_add_file_dialog ()
 	gint response;
 	gchar *filename;
 
-	dialog = gtk_file_chooser_dialog_new (_("Select Torrent..."), GTK_WINDOW (app.window),
+	dialog = gtk_file_chooser_dialog_new (_("Select Torrent..."), GTK_WINDOW (app->window),
 		GTK_FILE_CHOOSER_ACTION_OPEN,
 		GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 		GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT, NULL);
@@ -163,7 +211,7 @@ open_dialog_show_add_file_dialog ()
 	return filename;
 }
 
-void
+BT_EXPORT void
 open_dialog_add_clicked (GtkWidget *widget G_GNUC_UNUSED, gpointer data G_GNUC_UNUSED)
 {
 	gchar *filename = open_dialog_show_add_file_dialog ();
@@ -172,10 +220,28 @@ open_dialog_add_clicked (GtkWidget *widget G_GNUC_UNUSED, gpointer data G_GNUC_U
 		open_dialog_add_file (filename);
 }
 
-void
+BT_EXPORT void
 open_dialog_remove_clicked (GtkWidget *widget G_GNUC_UNUSED, gpointer data G_GNUC_UNUSED)
 {
-
+	GtkTreeSelection *selection;
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	gboolean valid;
+	
+	selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (app->open_dialog_torrents_treeview));
+	
+	if (gtk_tree_selection_get_selected (selection, &model, &iter)) {
+		g_signal_handlers_block_by_func (selection, open_dialog_selection_changed, NULL);
+		
+		valid = gtk_list_store_remove (GTK_LIST_STORE (model), &iter);
+		
+		g_signal_handlers_unblock_by_func (selection, open_dialog_selection_changed, NULL);
+		
+		if (valid)
+			gtk_tree_selection_select_iter (selection, &iter);
+		else
+			open_dialog_selection_changed (NULL, NULL);
+	}
 }
 
 static void
@@ -184,39 +250,67 @@ open_dialog_run (gchar *filename)
 	GtkWidget *dialog;
 	GtkWidget *priority;
 	GtkListStore *list;
+	GtkListStore *files;
 	GtkWidget *view;
+	GtkWidget *files_view;
 	GtkTreeViewColumn *col;
 	GtkCellRenderer *cell;
 
-	view = app.open_dialog_torrents_treeview;
+	view = app->open_dialog_torrents_treeview;
+	files_view = app->open_dialog_files_treeview;
 
-	list = gtk_list_store_new (COLUMN_TOTAL, BT_TYPE_TORRENT, G_TYPE_STRING, BT_TYPE_TORRENT_PRIORITY, G_TYPE_BOOLEAN);
+	if (gtk_tree_view_get_model (GTK_TREE_VIEW (view)) == NULL) {
+		list = gtk_list_store_new (COLUMN_TOTAL, BT_TYPE_TORRENT, G_TYPE_STRING, BT_TYPE_TORRENT_PRIORITY, G_TYPE_BOOLEAN);
+		gtk_tree_view_set_model (GTK_TREE_VIEW (view), GTK_TREE_MODEL (list));
+		g_object_unref (list);
+		
+		col = gtk_tree_view_column_new ();
+		gtk_tree_view_column_set_title (col, _("Name"));
 	
-	gtk_tree_view_set_model (GTK_TREE_VIEW (view), GTK_TREE_MODEL (list));
-
-	g_object_unref (list);
-
-	g_signal_connect (gtk_tree_view_get_selection (GTK_TREE_VIEW (view)), "changed", G_CALLBACK (open_dialog_selection_changed), NULL);
-
-	col = gtk_tree_view_column_new ();
-	gtk_tree_view_column_set_title (col, _("Name"));
+		cell = gtk_cell_renderer_text_new ();
+		gtk_tree_view_column_pack_start (col, cell, TRUE);
+		gtk_tree_view_column_set_cell_data_func (col, cell, open_dialog_cell_renderer_func, NULL, NULL);
+		gtk_tree_view_append_column (GTK_TREE_VIEW (view), col);
+		
+		g_signal_connect (gtk_tree_view_get_selection (GTK_TREE_VIEW (view)), "changed", G_CALLBACK (open_dialog_selection_changed), NULL);
+	}
 	
-	cell = gtk_cell_renderer_text_new ();
-	gtk_tree_view_column_pack_start (col, cell, TRUE);
-	gtk_tree_view_column_set_cell_data_func (col, cell, open_dialog_cell_renderer_func, NULL, NULL);
-	gtk_tree_view_append_column (GTK_TREE_VIEW (view), col);
-
+	if (gtk_tree_view_get_model (GTK_TREE_VIEW (files_view)) == NULL) {
+		files = gtk_list_store_new (1, BT_TYPE_TORRENT_FILE);
+		gtk_tree_view_set_model (GTK_TREE_VIEW (files_view), GTK_TREE_MODEL (files));
+		g_object_unref (files);
+		
+		col = gtk_tree_view_column_new ();
+		gtk_tree_view_column_set_title (col, _("Download"));
+		cell = gtk_cell_renderer_toggle_new ();
+		gtk_tree_view_column_pack_start (col, cell, TRUE);
+		gtk_tree_view_column_set_cell_data_func (col, cell, open_dialog_files_download_cell_renderer_func, NULL, NULL);
+		gtk_tree_view_append_column (GTK_TREE_VIEW (files_view), col);
+		
+		col = gtk_tree_view_column_new ();
+		gtk_tree_view_column_set_title (col, _("File"));
+		cell = gtk_cell_renderer_text_new ();
+		gtk_tree_view_column_pack_start (col, cell, TRUE);
+		gtk_tree_view_column_set_cell_data_func (col, cell, open_dialog_files_name_cell_renderer_func, NULL, NULL);
+		gtk_tree_view_append_column (GTK_TREE_VIEW (files_view), col);
+	}
+	
 	if (filename)
 		open_dialog_add_file (filename);
-
-	dialog = app.open_dialog;
-	priority = app.open_dialog_priority_combobox;
+	else
+		open_dialog_selection_changed (gtk_tree_view_get_selection (GTK_TREE_VIEW (view)), NULL);
+	
+	dialog = app->open_dialog;
+	priority = app->open_dialog_priority_combobox;
 
 	gtk_combo_box_set_active (GTK_COMBO_BOX (priority), 1);
 
 	gtk_dialog_run (GTK_DIALOG (dialog));
 
 	gtk_widget_hide (dialog);
+	
+	gtk_list_store_clear (list);
+	gtk_list_store_clear (files);
 }
 
 static void
@@ -228,13 +322,13 @@ open_dialog_show_add_dialog_and_run ()
 		open_dialog_run (filename);
 }
 
-void
+BT_EXPORT void
 open_torrent_menuitem_activated (GtkWidget *widget G_GNUC_UNUSED, gpointer data G_GNUC_UNUSED)
 {
 	open_dialog_show_add_dialog_and_run ();
 }
 
-void
+BT_EXPORT void
 open_torrent_toolbutton_clicked (GtkWidget *widget G_GNUC_UNUSED, gpointer data G_GNUC_UNUSED)
 {
 	open_dialog_show_add_dialog_and_run ();

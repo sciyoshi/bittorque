@@ -8,9 +8,13 @@
                 "63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C2" \
                 "45E485B576625E7EC6F44C42E9A63A36210000000000090563"
 
+#ifdef HAVE_GCRYPT_H
+
 static gcry_mpi_t prime_p = NULL;
 
 static gcry_mpi_t generator_g = NULL;
+
+#endif
 
 void
 bt_peer_encryption_receive (BtPeer *self, gchar *buf G_GNUC_UNUSED, gsize len G_GNUC_UNUSED, BtPeerEncryption *encryption)

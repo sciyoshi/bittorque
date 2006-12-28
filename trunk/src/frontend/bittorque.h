@@ -15,8 +15,8 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA, 02110-1301, USA
+ */ 
 
 #ifndef __BITTORQUE_H__
 #define __BITTORQUE_H__
@@ -31,23 +31,48 @@
 
 G_BEGIN_DECLS
 
+/* this is for --export-dynamic and glade's autoconnect */
+#ifdef G_OS_WIN32
+# define BT_EXPORT __declspec (dllexport)
+#else
+# define BT_EXPORT
+#endif
+
+#define BT_TYPE_APP (bt_app_get_type ())
+#define BT_APP(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), BT_TYPE_APP, BtApp))
+
 typedef struct {
+	GObject        parent;
+	
+	/* the main window */
 	GtkWidget     *window;
+	
+	GtkWidget     *about_dialog;
 	
 	/* stuff for the open dialog */
 	GtkWidget     *open_dialog;
 	GtkWidget     *open_dialog_torrents_treeview;
+	GtkWidget     *open_dialog_remove_button;
 	GtkWidget     *open_dialog_priority_combobox;
 	GtkWidget     *open_dialog_location_chooser;
 	GtkWidget     *open_dialog_super_seeding_checkbox;
+	GtkWidget     *open_dialog_files_treeview;
 	
-	
+	/* statusbar icon */
 	GtkStatusIcon *icon;
+	
+	/* torrent manager */
 	BtManager     *manager;
 	
-} BittorqueApp;
+} BtApp;
 
-extern BittorqueApp app;
+typedef struct {
+	GObjectClass parent;
+} BtAppClass;
+
+extern BtApp *app;
+
+GType bt_app_get_type ();
 
 G_END_DECLS
 
