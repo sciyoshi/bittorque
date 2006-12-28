@@ -18,7 +18,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-
 #include <string.h>
 #include <stdlib.h>
 
@@ -51,6 +50,37 @@ bt_torrent_priority_get_type ()
 	
 	if (G_UNLIKELY (type == 0))
 		type = g_enum_register_static ("BtTorrentPriority", bt_torrent_priority_enum_values);
+	
+	return type;
+}
+
+static gpointer
+bt_torrent_file_copy (BtTorrentFile *file)
+{
+	BtTorrentFile *copy = g_new0 (BtTorrentFile, 1);
+	
+	copy->name = g_strdup (file->name);
+	copy->size = file->size;
+	copy->offset = file->offset;
+	copy->download = file->download;
+	
+	return copy;
+}
+
+static void
+bt_torrent_file_free (BtTorrentFile *file)
+{
+	g_free (file->name);
+	g_free (file);
+}
+
+GType
+bt_torrent_file_get_type ()
+{
+	static GType type = 0;
+	
+	if (G_UNLIKELY (type == 0))
+		type = g_boxed_type_register_static ("BtTorrentFile", (GBoxedCopyFunc) bt_torrent_file_copy, (GBoxedFreeFunc) bt_torrent_file_free);
 	
 	return type;
 }
@@ -89,7 +119,7 @@ bt_torrent_parse_file (BtTorrent *self, gchar *filename, GError **error)
 	if (!name || name->type != BT_BENCODE_TYPE_STRING)
 		goto cleanup;
 
-	self->name = g_strdup (name->value.string->str);
+	self->name = g_strdup (name->string->str);
 	g_debug ("torrent name: %s", self->name);
 
 	/* check the info hash of this torrent */
@@ -105,7 +135,7 @@ bt_torrent_parse_file (BtTorrent *self, gchar *filename, GError **error)
 	if (announce == NULL)
 		goto cleanup;
 
-	self->announce = g_strdup (announce->value.string->str);
+	self->announce = g_strdup (announce->string->str);
 
 	if (announce_list) {
 		/* the announce-list is a list of lists of strings (doubly nested) */
@@ -116,7 +146,7 @@ bt_torrent_parse_file (BtTorrent *self, gchar *filename, GError **error)
 		if (announce_list->type != BT_BENCODE_TYPE_LIST)
 			goto cleanup;
 
-		for (i = announce_list->value.list; i != NULL; i = i->next) {
+		for (i = announce_list->list; i != NULL; i = i->next) {
 			GSList *list, *k;
 			BtBencode *j;
 
@@ -126,15 +156,15 @@ bt_torrent_parse_file (BtTorrent *self, gchar *filename, GError **error)
 			if (j->type != BT_BENCODE_TYPE_LIST)
 				goto cleanup;
 
-			for (k = j->value.list; k != NULL; k = k->next) {
+			for (k = j->list; k != NULL; k = k->next) {
 				BtBencode *l;
 
 				l = bt_bencode_slitem (k);
 				if (l->type != BT_BENCODE_TYPE_STRING)
 					goto cleanup;
 
-				g_debug ("announce: %s", l->value.string->str);
-				list = g_slist_prepend (list, g_strdup (l->value.string->str));
+				g_debug ("announce: %s", l->string->str);
+				list = g_slist_prepend (list, g_strdup (l->string->str));
 			}
 
 			list = g_slist_reverse (list);
@@ -160,12 +190,15 @@ bt_torrent_parse_file (BtTorrent *self, gchar *filename, GError **error)
 	    || (files && files->type != BT_BENCODE_TYPE_LIST))
 		goto cleanup;
 
-	self->piece_length = (guint32) piece_length->value.value;
+	self->piece_length = (guint32) piece_length->value;
 
 	if (length) {
 		/* this torrent is one single file */
-		self->size = length->value.value;
-		self->files = g_slist_prepend (self->files, NULL);
+		self->size = length->value;
+		
+		BtTorrentFile file = {g_strdup (self->name), self->size, 0, TRUE};
+		
+		g_array_append_val (self->files, file);
 	}
 
 	if (files) {
@@ -174,11 +207,12 @@ bt_torrent_parse_file (BtTorrent *self, gchar *filename, GError **error)
 
 		self->size = 0;
 
-		for (i = files->value.list; i != NULL; i = i->next) {
+		for (i = files->list; i != NULL; i = i->next) {
 			BtBencode *entry, *length, *path;
 			GSList *j;
 			gchar **path_strv;
 			gchar *full_path;
+			BtTorrentFile file = {0, 0, 0, TRUE};
 			gsize k = 0;
 
 			entry = bt_bencode_slitem (i);
@@ -190,26 +224,29 @@ bt_torrent_parse_file (BtTorrent *self, gchar *filename, GError **error)
 			if (!length || length->type != BT_BENCODE_TYPE_INT || !path || path->type != BT_BENCODE_TYPE_LIST)
 				goto cleanup;
 
-			path_strv = g_malloc0 ((g_slist_length (path->value.list) + 1) * sizeof (gpointer));
+			path_strv = g_malloc0 ((g_slist_length (path->list) + 1) * sizeof (gpointer));
 
-			for (j = path->value.list; j != NULL; j = j->next) {
+			for (j = path->list; j != NULL; j = j->next) {
 				if (bt_bencode_slitem (j)->type != BT_BENCODE_TYPE_STRING) {
 					g_free (path_strv);
 					goto cleanup;
 				}
 
-				path_strv[k++] = bt_bencode_slitem (j)->value.string->str;
+				path_strv[k++] = bt_bencode_slitem (j)->string->str;
 			}
 
-			self->size += length->value.value;
+			self->size += length->value;
 			full_path = g_build_filenamev (path_strv);
 			g_free (path_strv);
 			g_debug ("%s", full_path);
-			g_free (full_path);
-			self->files = g_slist_prepend (self->files, NULL);
+			
+			file.size = length->value;
+			file.name = full_path;
+			
+			g_array_append_val (self->files, file);
+			
+			file.offset += file.size;
 		}
-
-		self->files = g_slist_reverse (self->files);
 	}
 
 	bt_bencode_destroy (metainfo);
@@ -292,7 +329,7 @@ bt_torrent_init (BtTorrent *torrent)
 	torrent->name = NULL;
 	torrent->size = 0;
 	torrent->piece_length = 0;
-	torrent->files = NULL;
+	torrent->files = g_array_new (FALSE, TRUE, sizeof (BtTorrentFile));
 	torrent->check_peers_source = NULL;
 	torrent->announce_source = NULL;
 	torrent->announce_start = NULL;
@@ -332,6 +369,7 @@ bt_torrent_finalize (GObject *torrent)
 	g_free (self->announce);
 	g_free (self->name);
 	g_string_free (self->cache, TRUE);
+	g_array_free (self->files, TRUE);
 
 	((GObjectClass *) bt_torrent_parent_class)->finalize (torrent);
 }

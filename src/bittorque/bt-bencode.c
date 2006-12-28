@@ -1,3 +1,24 @@
+/**
+ * bt-bencode.c
+ *
+ * Copyright 2006 Samuel Cormier-Iijima <sciyoshi@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St,, Fifth Floor, Boston, MA 02110-1301, USA
+ */
+
+/* for strtoll */
 #define _GNU_SOURCE
 
 #include <stdlib.h>
@@ -35,7 +56,7 @@ _bt_bencode_decode (const gchar *buf, const gchar **end, GError **error)
 
 		data = g_slice_new0 (BtBencode);
 		data->type = BT_BENCODE_TYPE_INT;
-		data->value.value = i;
+		data->value = i;
 		return data;
 
 	} else if (g_ascii_isdigit (*buf)) {
@@ -50,7 +71,7 @@ _bt_bencode_decode (const gchar *buf, const gchar **end, GError **error)
 
 		data = g_slice_new0 (BtBencode);
 		data->type = BT_BENCODE_TYPE_STRING;
-		data->value.string = g_string_new_len (*end + 1, len);
+		data->string = g_string_new_len (*end + 1, len);
 		*end += len + 1;
 		return data;
 
@@ -85,7 +106,7 @@ _bt_bencode_decode (const gchar *buf, const gchar **end, GError **error)
 				return NULL;
 			}
 
-			g_tree_insert (dict, g_strdup (key->value.string->str), val);
+			g_tree_insert (dict, g_strdup (key->string->str), val);
 			bt_bencode_destroy (key);
 		}
 
@@ -93,7 +114,7 @@ _bt_bencode_decode (const gchar *buf, const gchar **end, GError **error)
 
 		data = g_slice_new0 (BtBencode);
 		data->type = BT_BENCODE_TYPE_DICT;
-		data->value.dict = dict;
+		data->dict = dict;
 		return data;
 
 	} else if (*buf == 'l') {
@@ -120,7 +141,7 @@ _bt_bencode_decode (const gchar *buf, const gchar **end, GError **error)
 
 		data = g_slice_new0 (BtBencode);
 		data->type = BT_BENCODE_TYPE_LIST;
-		data->value.list = list;
+		data->list = list;
 		return data;
 	}
 
@@ -148,23 +169,23 @@ _bt_bencode_encode (BtBencode *data, GString **string)
 
 	switch (data->type) {
 	case BT_BENCODE_TYPE_INT:
-		g_string_append_printf (*string, "i%llde", data->value.value);
+		g_string_append_printf (*string, "i%llde", data->value);
 		break;
 
 	case BT_BENCODE_TYPE_STRING:
-		g_string_append_printf (*string, "%d:", data->value.string->len);
-		*string = g_string_append_len (*string, data->value.string->str, data->value.string->len);
+		g_string_append_printf (*string, "%d:", data->string->len);
+		*string = g_string_append_len (*string, data->string->str, data->string->len);
 		break;
 
 	case BT_BENCODE_TYPE_DICT:
 		*string = g_string_append_c (*string, 'd');
-		g_tree_foreach (data->value.dict, (GTraverseFunc) _bt_bencode_encode_key_val, (gpointer) string);
+		g_tree_foreach (data->dict, (GTraverseFunc) _bt_bencode_encode_key_val, (gpointer) string);
 		*string = g_string_append_c (*string, 'e');
 		break;
 
 	case BT_BENCODE_TYPE_LIST:
 		*string = g_string_append_c (*string, 'l');
-		g_slist_foreach (data->value.list, (GFunc) _bt_bencode_encode, (gpointer) string);
+		g_slist_foreach (data->list, (GFunc) _bt_bencode_encode, (gpointer) string);
 		*string = g_string_append_c (*string, 'e');
 		break;
 	}
@@ -185,16 +206,16 @@ bt_bencode_destroy (BtBencode *data)
 
 	switch (data->type) {
 	case BT_BENCODE_TYPE_STRING:
-		g_string_free (data->value.string, TRUE);
+		g_string_free (data->string, TRUE);
 		break;
 
 	case BT_BENCODE_TYPE_LIST:
-		g_slist_foreach (data->value.list, (GFunc) bt_bencode_destroy, NULL);
-		g_slist_free (data->value.list);
+		g_slist_foreach (data->list, (GFunc) bt_bencode_destroy, NULL);
+		g_slist_free (data->list);
 		break;
 
 	case BT_BENCODE_TYPE_DICT:
-		g_tree_destroy (data->value.dict);
+		g_tree_destroy (data->dict);
 		break;
 
 	case BT_BENCODE_TYPE_INT:

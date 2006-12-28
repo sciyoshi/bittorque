@@ -1,3 +1,23 @@
+/**
+ * bt-torrent-announce.c
+ *
+ * Copyright 2006 Samuel Cormier-Iijima <sciyoshi@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St,, Fifth Floor, Boston, MA 02110-1301, USA
+ */
+
 #include <string.h>
 #include <stdlib.h>
 
@@ -29,33 +49,33 @@ bt_torrent_announce_http_parse_response (BtTorrent *self, const gchar *buf)
 
 	if (failure) {
 		if (failure->type == BT_BENCODE_TYPE_STRING)
-			g_warning ("tracker sent error: %s", failure->value.string->str);
+			g_warning ("tracker sent error: %s", failure->string->str);
 		return FALSE;
 	}
 
 	warning = bt_bencode_lookup (response, "warning message");
 
 	if (warning && warning->type == BT_BENCODE_TYPE_STRING)
-		g_warning ("tracker sent warning: %s", warning->value.string->str);
+		g_warning ("tracker sent warning: %s", warning->string->str);
 
 	interval = bt_bencode_lookup (response, "interval");
 
 	if (interval && interval->type == BT_BENCODE_TYPE_INT) {
-		self->tracker_interval = interval->value.value;
+		self->tracker_interval = interval->value;
 		g_debug ("tracker announce interval: %d", self->tracker_interval);
 	}
 
 	interval = bt_bencode_lookup (response, "min interval");
 
 	if (interval && interval->type == BT_BENCODE_TYPE_INT) {
-		self->tracker_min_interval = interval->value.value;
+		self->tracker_min_interval = interval->value;
 		g_debug ("tracker announce mininmum interval: %d", self->tracker_min_interval);
 	}
 
 	tracker_id = bt_bencode_lookup (response, "tracker id");
 
 	if (tracker_id && tracker_id->type == BT_BENCODE_TYPE_STRING) {
-		self->tracker_id = g_strdup (tracker_id->value.string->str);
+		self->tracker_id = g_strdup (tracker_id->string->str);
 		g_debug ("tracker id: %s", self->tracker_id);
 	}
 
@@ -64,15 +84,15 @@ bt_torrent_announce_http_parse_response (BtTorrent *self, const gchar *buf)
 	if (peers && peers->type == BT_BENCODE_TYPE_STRING) {
 		int num, i;
 		
-		if (peers->value.string->len % 6 != 0)
+		if (peers->string->len % 6 != 0)
 			g_warning ("invalid peers string");
 		
-		num = peers->value.string->len / 6;
+		num = peers->string->len / 6;
 		
 		for (i = 0; i < num; i++) {
 			GInetAddr *address;
-			address = gnet_inetaddr_new_bytes (peers->value.string->str + i * 6, 4);
-			gnet_inetaddr_set_port (address, g_ntohs (*((gushort *) (peers->value.string->str + i * 6 + 4))));
+			address = gnet_inetaddr_new_bytes (peers->string->str + i * 6, 4);
+			gnet_inetaddr_set_port (address, g_ntohs (*((gushort *) (peers->string->str + i * 6 + 4))));
 			bt_torrent_add_peer (self, bt_peer_new (self->manager, self, NULL, address));
 			gnet_inetaddr_unref (address);
 		}
@@ -133,7 +153,7 @@ bt_torrent_announce_http (BtTorrent *self, gchar *announce)
 	/* build query */
 	tmp = bt_url_encode (self->infohash, 20);
 
-	query = g_strdup_printf ("%s?info_hash=%s&peer_id=%s&port=%d&uploaded=%d&downloaded=%d&left=%d&compact=1&event=%s&numwant=%d",
+	query = g_strdup_printf ("%s?info_hash=%s&peer_id=%s&port=%d&uploaded=%d&downloaded=%d&left=%lld&compact=1&event=%s&numwant=%d",
 	                         announce,
 	                         tmp,
 	                         self->manager->peer_id,

@@ -70,7 +70,7 @@ if conf.CheckHeader('gcrypt.h'):
 env = conf.Finish()
 
 env.ParseConfig('pkg-config --cflags --libs glib-2.0 gobject-2.0 gthread-2.0 gnet-2.0')
-env.Append(CCFLAGS=['-g', '-Wall', '-Wextra', '-ansi'])
+env.Append(CCFLAGS=['-g', '-Wall', '-Wextra'])
 env.Append(CPPDEFINES=['-DGNET_EXPERIMENTAL'])
 
 if have_gcrypt:

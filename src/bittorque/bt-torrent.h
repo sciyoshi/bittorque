@@ -34,6 +34,8 @@ G_BEGIN_DECLS
 
 #define BT_TYPE_TORRENT_PRIORITY (bt_torrent_priority_get_type ())
 
+#define BT_TYPE_TORRENT_FILE (bt_torrent_file_get_type ())
+
 typedef struct _BtTorrent      BtTorrent;
 typedef struct _BtTorrentClass BtTorrentClass;
 
@@ -46,6 +48,13 @@ typedef enum {
 #include "bt-peer.h"
 #include "bt-bencode.h"
 
+typedef struct {
+	gchar   *name;
+	gint64   size;
+	gint64   offset;
+	gboolean download;
+} BtTorrentFile;
+
 struct _BtTorrent {
 	GObject    parent;
 
@@ -56,10 +65,10 @@ struct _BtTorrent {
 	GSList    *announce_list;
 	gchar      infohash[20];
 	gchar      infohash_string[41];
-	gsize      size;
+	gint64     size;
 	gchar     *peer_id;
 	gsize      piece_length;
-	GSList    *files;
+	GArray    *files;
 
 	GConnHttp *tracker_socket;
 	guint      tracker_current_tier;
@@ -82,6 +91,8 @@ struct _BtTorrentClass {
 };
 
 GType      bt_torrent_priority_get_type ();
+
+GType      bt_torrent_file_get_type ();
 
 GType      bt_torrent_get_type ();
 
