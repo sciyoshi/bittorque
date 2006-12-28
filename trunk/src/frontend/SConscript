@@ -2,4 +2,4 @@ Import('*')
 
 envgtk.Program('bittorque',
 	['bittorque.c',
-	 'opendialog.c'])
+	 'bittorque-open-dialog.c'])

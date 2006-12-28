@@ -277,6 +277,12 @@ bt_torrent_start_downloading (BtTorrent *self)
 }
 
 gboolean
+bt_torrent_pause_downloading (BtTorrent *self G_GNUC_UNUSED)
+{
+	return TRUE;
+}
+
+gboolean
 bt_torrent_stop_downloading (BtTorrent *self G_GNUC_UNUSED)
 {
 	return TRUE;

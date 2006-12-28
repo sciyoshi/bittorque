@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.0.2 on Wed Dec 27 16:47:40 2006 by sciyoshi@yoshiba
+<!--Generated with glade3 3.0.2 on Thu Dec 28 12:14:52 2006 by sciyoshi@yoshiba
 	Version: 3.0.1
 	Date: Sun Sep 24 02:50:05 2006
 	User: sciyoshi
@@ -11,6 +11,7 @@
     <property name="title" translatable="yes">BitTorque</property>
     <property name="default_width">700</property>
     <property name="default_height">450</property>
+    <property name="icon">bittorque.png</property>
     <child>
       <widget class="GtkVBox" id="vbox1">
         <property name="visible">True</property>
@@ -42,18 +43,11 @@
                       </widget>
                     </child>
                     <child>
-                      <widget class="GtkImageMenuItem" id="menuitem2">
+                      <widget class="GtkMenuItem" id="menuitem2">
                         <property name="visible">True</property>
                         <property name="tooltip" translatable="yes">Add a torrent from a URL</property>
                         <property name="label" translatable="yes">Add Torrent from _URL...</property>
                         <property name="use_underline">True</property>
-                        <child internal-child="image">
-                          <widget class="GtkImage" id="menu-item-image3">
-                            <property name="visible">True</property>
-                            <property name="stock">gtk-add</property>
-                            <property name="icon_size">1</property>
-                          </widget>
-                        </child>
                       </widget>
                     </child>
                     <child>
@@ -134,6 +128,7 @@
                 <property name="visible">True</property>
                 <property name="label">Create Torrent...</property>
                 <property name="stock_id">gtk-new</property>
+                <property name="tooltip" translatable="yes">Create a new torrent to share files with others</property>
                 <signal name="clicked" handler="create_torrent_toolbutton_clicked"/>
               </widget>
             </child>
@@ -148,11 +143,13 @@
                 <property name="sensitive">False</property>
                 <property name="label">Pause</property>
                 <property name="stock_id">gtk-media-pause</property>
+                <property name="tooltip" translatable="yes">Start/pause a torrent</property>
               </widget>
             </child>
             <child>
               <widget class="GtkToolButton" id="toolbutton5">
                 <property name="visible">True</property>
+                <property name="sensitive">False</property>
                 <property name="label">Stop</property>
                 <property name="stock_id">gtk-media-stop</property>
                 <property name="tooltip" translatable="yes">Completely stop torrent, disconnecting from all peers</property>
@@ -161,22 +158,28 @@
             <child>
               <widget class="GtkToolButton" id="toolbutton2">
                 <property name="visible">True</property>
+                <property name="sensitive">False</property>
                 <property name="label">Remove</property>
                 <property name="stock_id">gtk-remove</property>
+                <property name="tooltip" translatable="yes">Remove the selected torrent</property>
               </widget>
             </child>
             <child>
               <widget class="GtkToolButton" id="toolbutton4">
                 <property name="visible">True</property>
+                <property name="sensitive">False</property>
                 <property name="label">Move Up</property>
                 <property name="stock_id">gtk-go-up</property>
+                <property name="tooltip" translatable="yes">Move torrent up the queue</property>
               </widget>
             </child>
             <child>
               <widget class="GtkToolButton" id="toolbutton6">
                 <property name="visible">True</property>
+                <property name="sensitive">False</property>
                 <property name="label">Move Down</property>
                 <property name="stock_id">gtk-go-down</property>
+                <property name="tooltip" translatable="yes">Move torrent down the queue</property>
               </widget>
             </child>
             <child>
@@ -664,14 +667,30 @@ Downloading</property>
                             <property name="column_spacing">12</property>
                             <property name="row_spacing">6</property>
                             <child>
-                              <widget class="GtkLabel" id="label10">
+                              <widget class="GtkComboBox" id="open_dialog_priority_combobox">
                                 <property name="visible">True</property>
-                                <property name="xalign">0</property>
-                                <property name="label" translatable="yes">Download location:</property>
+                                <property name="items" translatable="yes">Low
+Normal
+High</property>
+                                <signal name="changed" handler="open_dialog_priority_combobox_changed"/>
                               </widget>
                               <packing>
+                                <property name="left_attach">1</property>
+                                <property name="right_attach">2</property>
+                                <property name="top_attach">1</property>
+                                <property name="bottom_attach">2</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkLabel" id="label11">
+                                <property name="visible">True</property>
+                                <property name="xalign">0</property>
+                                <property name="label" translatable="yes">Priority:</property>
+                              </widget>
+                              <packing>
+                                <property name="top_attach">1</property>
+                                <property name="bottom_attach">2</property>
                                 <property name="x_options">GTK_FILL</property>
-                                <property name="y_options">GTK_FILL</property>
                               </packing>
                             </child>
                             <child>
@@ -688,30 +707,14 @@ Downloading</property>
                               </packing>
                             </child>
                             <child>
-                              <widget class="GtkLabel" id="label11">
+                              <widget class="GtkLabel" id="label10">
                                 <property name="visible">True</property>
                                 <property name="xalign">0</property>
-                                <property name="label" translatable="yes">Priority:</property>
+                                <property name="label" translatable="yes">Download location:</property>
                               </widget>
                               <packing>
-                                <property name="top_attach">1</property>
-                                <property name="bottom_attach">2</property>
                                 <property name="x_options">GTK_FILL</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <widget class="GtkComboBox" id="open_dialog_priority_combobox">
-                                <property name="visible">True</property>
-                                <property name="items" translatable="yes">Low
-Normal
-High</property>
-                                <signal name="changed" handler="open_dialog_priority_combobox_changed"/>
-                              </widget>
-                              <packing>
-                                <property name="left_attach">1</property>
-                                <property name="right_attach">2</property>
-                                <property name="top_attach">1</property>
-                                <property name="bottom_attach">2</property>
+                                <property name="y_options">GTK_FILL</property>
                               </packing>
                             </child>
                           </widget>
