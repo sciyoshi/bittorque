@@ -1,5 +1,5 @@
 /**
- * bittorque-plugin-manager.c
+ * bittorque-plugin-info.c
  *
  * Copyright 2006 Samuel Cormier-Iijima <sciyoshi@gmail.com>
  *
@@ -18,10 +18,9 @@
  * Foundation, Inc., 51 Franklin St,, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include "bittorque-plugin-manager.h"
 #include "bittorque-plugin-info.h"
 
-G_DEFINE_TYPE (BtPluginManager, bt_plugin_manager, G_TYPE_OBJECT)
+G_DEFINE_TYPE (BtPluginInfo, bt_plugin_info, G_TYPE_OBJECT)
 
 enum {
 	PROP_0,
@@ -29,7 +28,7 @@ enum {
 };
 
 static gboolean
-bt_plugin_manager_find_plugins (BtPluginManager *self)
+bt_plugin_info_find_plugins (BtPluginInfo *self)
 {
 	GDir *dir;
 	const gchar *name;
@@ -56,31 +55,31 @@ bt_plugin_manager_find_plugins (BtPluginManager *self)
 }
 
 static GObject *
-bt_plugin_manager_constructor (GType type, guint num, GObjectConstructParam *properties)
+bt_plugin_info_constructor (GType type, guint num, GObjectConstructParam *properties)
 {
 	GObject *object;
-	BtPluginManager *self;
+	BtPluginInfo *self;
 
-	object = G_OBJECT_CLASS (bt_plugin_manager_parent_class)->constructor (type, num, properties);
-	self = BT_PLUGIN_MANAGER (object);
+	object = G_OBJECT_CLASS (bt_plugin_info_parent_class)->constructor (type, num, properties);
+	self = BT_PLUGIN_INFO (object);
 
 	if (self->path)
-		bt_plugin_manager_find_plugins (self);
+		bt_plugin_info_find_plugins (self);
 
 	return object;
 }
 
 static void
-bt_plugin_manager_init (BtPluginManager *manager)
+bt_plugin_info_init (BtPluginInfo *info)
 {
-	manager->path = NULL;
-	manager->modules = NULL;
+	info->path = NULL;
+	info->modules = NULL;
 }
 
 static void
-bt_plugin_manager_set_property (GObject *object, guint property, const GValue *value, GParamSpec *pspec)
+bt_plugin_info_set_property (GObject *object, guint property, const GValue *value, GParamSpec *pspec)
 {
-	BtPluginManager *self = BT_PLUGIN_MANAGER (object);
+	BtPluginInfo *self = BT_PLUGIN_INFO (object);
 
 	switch (property) {
 	case PROP_PATH:
@@ -95,9 +94,9 @@ bt_plugin_manager_set_property (GObject *object, guint property, const GValue *v
 }
 
 static void
-bt_plugin_manager_get_property (GObject *object, guint property, GValue *value, GParamSpec *pspec)
+bt_plugin_info_get_property (GObject *object, guint property, GValue *value, GParamSpec *pspec)
 {
-	BtPluginManager *self = BT_PLUGIN_MANAGER (object);
+	BtPluginInfo *self = BT_PLUGIN_INFO (object);
 
 	switch (property) {
 	case PROP_PATH:
@@ -111,34 +110,34 @@ bt_plugin_manager_get_property (GObject *object, guint property, GValue *value, 
 }
 
 static void
-bt_plugin_manager_dispose (GObject *manager)
+bt_plugin_info_dispose (GObject *info)
 {
-	BtPluginManager *self G_GNUC_UNUSED = BT_PLUGIN_MANAGER (manager);
+	BtPluginInfo *self G_GNUC_UNUSED = BT_PLUGIN_INFO (info);
 
-	((GObjectClass *) bt_plugin_manager_parent_class)->dispose (manager);
+	((GObjectClass *) bt_plugin_info_parent_class)->dispose (info);
 }
 
 static void
-bt_plugin_manager_finalize (GObject *manager)
+bt_plugin_info_finalize (GObject *info)
 {
-	BtPluginManager *self G_GNUC_UNUSED = BT_PLUGIN_MANAGER (manager);
+	BtPluginInfo *self G_GNUC_UNUSED = BT_PLUGIN_INFO (info);
 
-	((GObjectClass *) bt_plugin_manager_parent_class)->finalize (manager);
+	((GObjectClass *) bt_plugin_info_parent_class)->finalize (info);
 }
 
 static void
-bt_plugin_manager_class_init (BtPluginManagerClass *klass)
+bt_plugin_info_class_init (BtPluginInfoClass *klass)
 {
 	GObjectClass *gclass;
 	GParamSpec *pspec;
 
 	gclass = G_OBJECT_CLASS (klass);
 
-	gclass->set_property = bt_plugin_manager_set_property;
-	gclass->get_property = bt_plugin_manager_get_property;
-	gclass->constructor = bt_plugin_manager_constructor;
-	gclass->finalize = bt_plugin_manager_finalize;
-	gclass->dispose = bt_plugin_manager_dispose;
+	gclass->set_property = bt_plugin_info_set_property;
+	gclass->get_property = bt_plugin_info_get_property;
+	gclass->constructor = bt_plugin_info_constructor;
+	gclass->finalize = bt_plugin_info_finalize;
+	gclass->dispose = bt_plugin_info_dispose;
 
 	pspec = g_param_spec_string ("path",
 	                             "module path",
