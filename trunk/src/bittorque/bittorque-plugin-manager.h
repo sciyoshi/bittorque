@@ -24,13 +24,14 @@
 #include <glib-object.h>
 
 #define BT_TYPE_PLUGIN_MANAGER (bt_plugin_manager_get_type ())
+#define BT_PLUGIN_MANAGER(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), BT_TYPE_PLUGIN_MANAGER, BtPluginManager))
 
 G_BEGIN_DECLS
 
 typedef struct {
 	GObject parent;
 	
-	GList *path;
+	gchar *path;
 	GList *modules;
 } BtPluginManager;
 

@@ -255,7 +255,7 @@ bt_peer_disconnect (BtPeer *self)
 }
 
 static void
-bt_peer_set_property (GObject *object, guint property, const GValue *value, GParamSpec *pspec G_GNUC_UNUSED)
+bt_peer_set_property (GObject *object, guint property, const GValue *value, GParamSpec *pspec)
 {
 	BtPeer *self = BT_PEER (object);
 
@@ -265,11 +265,15 @@ bt_peer_set_property (GObject *object, guint property, const GValue *value, GPar
 
 	case PROP_INTERESTING:
 		bt_peer_set_interesting (self, g_value_get_boolean (value));
+	
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property, pspec);
+		break;
 	}
 }
 
 static void
-bt_peer_get_property (GObject *object, guint property, GValue *value, GParamSpec *pspec G_GNUC_UNUSED)
+bt_peer_get_property (GObject *object, guint property, GValue *value, GParamSpec *pspec)
 {
 	BtPeer *self = BT_PEER (object);
 
@@ -285,6 +289,10 @@ bt_peer_get_property (GObject *object, guint property, GValue *value, GParamSpec
 
 	case PROP_INTERESTED:
 		g_value_set_boolean (value, bt_peer_get_interested (self));
+	
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property, pspec);
+		break;
 	}
 }
 
