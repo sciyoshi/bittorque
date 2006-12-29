@@ -38,9 +38,9 @@ enum {
 };
 
 static const GEnumValue bt_torrent_priority_enum_values[] = {
-	{BT_TORRENT_PRIORITY_LOW, "BT_TORRENT_PRIORITY_LOW", "low"},
+	{BT_TORRENT_PRIORITY_LOW,    "BT_TORRENT_PRIORITY_LOW",    "low"},
 	{BT_TORRENT_PRIORITY_NORMAL, "BT_TORRENT_PRIORITY_NORMAL", "normal"},
-	{BT_TORRENT_PRIORITY_HIGH, "BT_TORRENT_PRIORITY_HIGH", "high"}
+	{BT_TORRENT_PRIORITY_HIGH,   "BT_TORRENT_PRIORITY_HIGH",   "high"}
 };
 
 GType

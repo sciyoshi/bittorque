@@ -43,16 +43,19 @@ bt_plugin_manager_find_plugins (BtPluginManager *self)
 	
 	while ((name = g_dir_read_name (dir))) {
 		gchar *path;
-		BtPluginInfo *module;
+		GTypeModule *module;
 		path = g_build_filename (self->path, name, NULL);
-		module = bt_plugin_info_new (path);
+		module = G_TYPE_MODULE (bt_plugin_info_new (path));
 		g_free (path);
+		/* TODO: more checks */
 		g_type_module_use (module);
 		g_type_module_unuse (module);
 		self->modules = g_list_prepend (self->modules, module);
 	}
 	
 	g_dir_close (dir);
+	
+	return TRUE;
 }
 
 static GObject *
