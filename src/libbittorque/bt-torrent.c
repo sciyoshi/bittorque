@@ -301,17 +301,19 @@ bt_torrent_add_peer (BtTorrent *self, BtPeer *peer)
 }
 
 static void
-bt_torrent_set_property (GObject *object, guint property, const GValue *value G_GNUC_UNUSED, GParamSpec *pspec G_GNUC_UNUSED)
+bt_torrent_set_property (GObject *object, guint property, const GValue *value G_GNUC_UNUSED, GParamSpec *pspec)
 {
 	BtTorrent *self G_GNUC_UNUSED = BT_TORRENT (object);
 
 	switch (property) {
-
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property, pspec);
+		break;
 	}
 }
 
 static void
-bt_torrent_get_property (GObject *object, guint property, GValue *value, GParamSpec *pspec G_GNUC_UNUSED)
+bt_torrent_get_property (GObject *object, guint property, GValue *value, GParamSpec *pspec)
 {
 	BtTorrent *self = BT_TORRENT (object);
 
@@ -322,6 +324,10 @@ bt_torrent_get_property (GObject *object, guint property, GValue *value, GParamS
 
 	case PROP_SIZE:
 		g_value_set_uint64 (value, self->size);
+		break;
+	
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property, pspec);
 		break;
 	}
 }

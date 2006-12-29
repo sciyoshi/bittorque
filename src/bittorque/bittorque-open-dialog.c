@@ -172,7 +172,7 @@ open_dialog_add_file (gchar *filename)
 	}
 
 	gtk_list_store_append (list, &iter);
-	gtk_list_store_set (list, &iter, COLUMN_TORRENT, torrent, COLUMN_LOCATION, "/home/sciyoshi", COLUMN_PRIORITY, BT_TORRENT_PRIORITY_NORMAL, COLUMN_SUPER_SEEDING, FALSE, -1);
+	gtk_list_store_set (list, &iter, COLUMN_TORRENT, torrent, COLUMN_LOCATION, g_get_home_dir (), COLUMN_PRIORITY, BT_TORRENT_PRIORITY_NORMAL, COLUMN_SUPER_SEEDING, FALSE, -1);
 	g_object_unref (torrent);
 	
 	gtk_tree_selection_select_iter (gtk_tree_view_get_selection (GTK_TREE_VIEW (view)), &iter);

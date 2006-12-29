@@ -192,7 +192,7 @@ bt_manager_new_with_main (GMainContext *context)
 }
 
 static void
-bt_manager_set_property (GObject *object, guint property, const GValue *value, GParamSpec *pspec G_GNUC_UNUSED)
+bt_manager_set_property (GObject *object, guint property, const GValue *value, GParamSpec *pspec)
 {
 	BtManager *self = BT_MANAGER (object);
 	GError *error = NULL;
@@ -237,11 +237,15 @@ bt_manager_set_property (GObject *object, guint property, const GValue *value, G
 			g_free (self->private_dir);
 		self->private_dir = g_value_dup_string (value);
 		break;
+
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property, pspec);
+		break;
 	}
 }
 
 static void
-bt_manager_get_property (GObject *object, guint property, GValue *value, GParamSpec *pspec G_GNUC_UNUSED)
+bt_manager_get_property (GObject *object, guint property, GValue *value, GParamSpec *pspec)
 {
 	BtManager *self = BT_MANAGER (object);
 
@@ -264,6 +268,10 @@ bt_manager_get_property (GObject *object, guint property, GValue *value, GParamS
 
 	case PROP_PRIVATE_DIR:
 		g_value_set_string (value, self->private_dir);
+		break;
+
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property, pspec);
 		break;
 	}
 }
