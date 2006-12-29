@@ -47,6 +47,20 @@ quit_menuitem_activated (GtkWidget *widget G_GNUC_UNUSED, gpointer data G_GNUC_U
 }
 
 BT_EXPORT void
+preferences_menuitem_activated (GtkWidget *widget G_GNUC_UNUSED, gpointer data G_GNUC_UNUSED)
+{
+	gtk_dialog_run (GTK_DIALOG (app.preferences_dialog));
+	gtk_widget_hide (app.preferences_dialog);
+}
+
+BT_EXPORT void
+plugins_menuitem_activated (GtkWidget *widget G_GNUC_UNUSED, gpointer data G_GNUC_UNUSED)
+{
+	gtk_dialog_run (GTK_DIALOG (app.plugins_dialog));
+	gtk_widget_hide (app.plugins_dialog);
+}
+
+BT_EXPORT void
 create_torrent_toolbutton_clicked (GtkWidget *widget G_GNUC_UNUSED, gpointer data G_GNUC_UNUSED)
 {
 	return;
@@ -72,6 +86,8 @@ load_widgets (GladeXML *xml)
 	app.window = glade_xml_get_widget (xml, "window");
 
 	app.about_dialog = glade_xml_get_widget (xml, "about_dialog");
+	app.preferences_dialog = glade_xml_get_widget (xml, "preferences_dialog");
+	app.plugins_dialog = glade_xml_get_widget (xml, "plugins_dialog");
 	
 	gtk_about_dialog_set_name (GTK_ABOUT_DIALOG (app.about_dialog), "BitTorque");
 	
@@ -136,7 +152,7 @@ main (int argc, char *argv[])
 	g_object_unref (xml);
 
 	/* create the status icon */
-	app.icon = gtk_status_icon_new_from_file (DATADIR "/test.png");
+	app.icon = gtk_status_icon_new_from_file (DATADIR "/bittorque.png");
 	gtk_status_icon_set_tooltip (app.icon, "BitTorque");
 	gtk_status_icon_set_visible (app.icon, TRUE);
 
