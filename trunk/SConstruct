@@ -85,7 +85,7 @@ envlib.Append(CPPDEFINES=['-DG_LOG_DOMAIN=\\"Bittorque\\"'])
 
 envgtk = env.Copy()
 envgtk.Append(LINKFLAGS=['-Wl,--export-dynamic'])
-envgtk.Append(LIBPATH=['#/src/bittorque'])
+envgtk.Append(LIBPATH=['#/src/libbittorque'])
 envgtk.Append(LIBS=['bittorque'])
 envgtk.ParseConfig('pkg-config --cflags --libs gtk+-2.0 libglade-2.0 glib-2.0 gmodule-2.0 gnet-2.0')
 

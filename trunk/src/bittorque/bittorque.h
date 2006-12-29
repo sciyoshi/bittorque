@@ -43,6 +43,8 @@ typedef struct {
 	GtkWidget     *window;
 	
 	GtkWidget     *about_dialog;
+	GtkWidget     *preferences_dialog;
+	GtkWidget     *plugins_dialog;
 	
 	/* stuff for the open dialog */
 	GtkWidget     *open_dialog;
