@@ -24,6 +24,47 @@
 #include "bt-peer.h"
 
 void
+bt_peer_send_keepalive (BtPeer *self)
+{
+	static gchar buf[5] = {0, 0, 0, 0};
+	
+	gnet_conn_write (self->socket, buf, 4);
+}
+
+void
+bt_peer_send_choke (BtPeer *self)
+{
+	static gchar buf[5] = {0, 0, 0, 1, 0};
+	
+	gnet_conn_write (self->socket, buf, 5);
+}
+
+void
+bt_peer_send_unchoke (BtPeer *self)
+{
+	static gchar buf[5] = {0, 0, 0, 1, 1};
+	
+	gnet_conn_write (self->socket, buf, 5);
+}
+
+
+void
+bt_peer_send_interested (BtPeer *self)
+{
+	static gchar buf[5] = {0, 0, 0, 1, 2};
+	
+	gnet_conn_write (self->socket, buf, 5);
+}
+
+void
+bt_peer_send_uninterested (BtPeer *self)
+{
+	static gchar buf[5] = {0, 0, 0, 1, 3};
+	
+	gnet_conn_write (self->socket, buf, 5);
+}
+
+void
 bt_peer_send_handshake (BtPeer *self)
 {
 	gchar buf[68];
@@ -55,6 +96,7 @@ bt_peer_parse_handshake (BtPeer *self, GError **error)
 	gchar *buf;
 
 	if (self->pos < 48) {
+		/* we need more */
 		gnet_conn_read (self->socket);
 		return FALSE;
 	}

@@ -22,18 +22,24 @@
 #define __BITTORQUE_PLUGIN_INFO_H__
 
 #include <glib-object.h>
+#include <gmodule.h>
 
 #define BT_TYPE_PLUGIN_INFO (bt_plugin_info_get_type ())
 #define BT_PLUGIN_INFO(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), BT_TYPE_PLUGIN_INFO, BtPluginInfo))
 
 G_BEGIN_DECLS
 
-typedef struct {
+typedef struct _BtPluginInfo BtPluginInfo;
+
+struct _BtPluginInfo {
 	GTypeModule parent;
 	
 	gchar   *filename;
 	GModule *module;
-} BtPluginInfo;
+	
+	gboolean (*load) (BtPluginInfo *info);
+	gboolean (*unload) (BtPluginInfo *info);
+};
 
 typedef struct {
 	GTypeModuleClass parent;

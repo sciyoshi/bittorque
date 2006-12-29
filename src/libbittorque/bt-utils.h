@@ -28,6 +28,7 @@
 #include "bt-bencode.h"
 #include "bt-manager.h"
 
+#define BT_TYPE_ERROR (bt_error_get_type ())
 #define BT_ERROR (bt_error_get_quark ())
 
 typedef enum {
@@ -39,6 +40,8 @@ typedef enum {
 	BT_ERROR_TRACKER,
 	BT_ERROR_INVALID
 } BtError;
+
+GType    bt_error_get_type ();
 
 GQuark   bt_error_get_quark ();
 

@@ -31,6 +31,27 @@
 
 static const char hex_alphabet[] = "0123456789ABCDEF";
 
+static const GEnumValue bt_error_values[] = {
+	{BT_ERROR_NETWORK,               "BT_ERROR_NETWORK",               "network"},
+	{BT_ERROR_RESOLVING,             "BT_ERROR_RESOLVING",             "resolving"},
+	{BT_ERROR_INVALID_BENCODED_DATA, "BT_ERROR_INVALID_BENCODED_DATA", "invalid_bencoded-data"},
+	{BT_ERROR_INVALID_TORRENT,       "BT_ERROR_INVALID_TORRENT",       "invalid-torrent"},
+	{BT_ERROR_PEER_HANDSHAKE,        "BT_ERROR_PEER_HANDSHAKE",        "peer-handshake"},
+	{BT_ERROR_TRACKER,               "BT_ERROR_TRACKER",               "tracker"},
+	{BT_ERROR_INVALID,               "BT_ERROR_INVALID",               "invalid"},
+};
+
+GType
+bt_error_get_type ()
+{
+	static GType type = 0;
+	
+	if (G_UNLIKELY (type == 0))
+		type = g_enum_register_static ("BtError", bt_error_values);
+	
+	return type;
+}
+
 GQuark
 bt_error_get_quark ()
 {

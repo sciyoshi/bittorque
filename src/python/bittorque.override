@@ -1,0 +1,14 @@
+%%
+headers
+#include <Python.h>
+#include "pygobject.h"
+#include "bt-manager.h"
+#include "bt-utils.h"
+%%
+modulename bittorque
+%%
+import gobject.GObject as PyGObject_Type
+%%
+ignore-glob
+  *_get_type
+%%

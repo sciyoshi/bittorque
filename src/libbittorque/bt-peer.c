@@ -29,13 +29,13 @@ G_DEFINE_TYPE (BtPeer, bt_peer, G_TYPE_OBJECT)
 
 static const GEnumValue bt_peer_status_values[] = {
 	{BT_PEER_STATUS_CONNECTING,     "BT_PEER_STATUS_CONNECTING",     "connecting"},
-	{BT_PEER_STATUS_CONNECTED_SEND, "BT_PEER_STATUS_CONNECTED_SEND", "connected_send"},
-	{BT_PEER_STATUS_CONNECTED_WAIT, "BT_PEER_STATUS_CONNECTED_WAIT", "connected_wait"},
-	{BT_PEER_STATUS_SEND_HANDSHAKE, "BT_PEER_STATUS_SEND_HANDSHAKE", "send_handshake"},
-	{BT_PEER_STATUS_WAIT_HANDSHAKE, "BT_PEER_STATUS_WAIT_HANDSHAKE", "wait_handshake"},
+	{BT_PEER_STATUS_CONNECTED_SEND, "BT_PEER_STATUS_CONNECTED_SEND", "connected-send"},
+	{BT_PEER_STATUS_CONNECTED_WAIT, "BT_PEER_STATUS_CONNECTED_WAIT", "connected-wait"},
+	{BT_PEER_STATUS_SEND_HANDSHAKE, "BT_PEER_STATUS_SEND_HANDSHAKE", "send-handshake"},
+	{BT_PEER_STATUS_WAIT_HANDSHAKE, "BT_PEER_STATUS_WAIT_HANDSHAKE", "wait-handshake"},
 	{BT_PEER_STATUS_DISCONNECTING,  "BT_PEER_STATUS_DISCONNECTING",  "disconnecting"},
 	{BT_PEER_STATUS_DISCONNECTED,   "BT_PEER_STATUS_DISCONNECTED",   "disconnected"},
-	{BT_PEER_STATUS_IDLE_HAVE,      "BT_PEER_STATUS_IDLE_HAVE",      "idle_have"},
+	{BT_PEER_STATUS_IDLE_HAVE,      "BT_PEER_STATUS_IDLE_HAVE",      "idle-have"},
 	{BT_PEER_STATUS_IDLE,           "BT_PEER_STATUS_IDLE",           "idle"}
 };
 
@@ -77,6 +77,15 @@ void
 bt_peer_set_choking (BtPeer * self, gboolean choking)
 {
 	g_return_if_fail (BT_IS_PEER (self));
+	
+	if (self->choking == choking)
+		return;
+	
+	if (self->choking)
+		bt_peer_send_unchoke (self);
+	else
+		bt_peer_send_choke (self);
+	
 	self->choking = choking;
 }
 
@@ -91,6 +100,15 @@ void
 bt_peer_set_interesting (BtPeer *self, gboolean interesting)
 {
 	g_return_if_fail (BT_IS_PEER (self));
+	
+	if (self->interesting == interesting)
+		return;
+	
+	if (self->interesting)
+		bt_peer_send_uninterested (self);
+	else
+		bt_peer_send_interested (self);
+	
 	self->interesting = interesting;
 }
 
@@ -163,7 +181,7 @@ bt_peer_check (BtPeer *self)
 {
 	g_return_val_if_fail (BT_IS_PEER (self), FALSE);
 	
-	/* FIXME: add peer checking */
+	/* TODO: add peer checking */
 	
 	return FALSE;
 }
@@ -195,7 +213,7 @@ bt_peer_connected (BtPeer *self)
 	if (encryption == BT_PEER_ENCRYPTION_MODE_NONE) {
 		bt_peer_send_handshake (self);
 	} else {
-		/* FIXME: do encryption here */
+		/* TODO: do encryption here */
 		bt_peer_send_handshake (self);
 		/* bt_peer_encryption_init (self, encryption); */
 	}
@@ -220,6 +238,7 @@ bt_peer_connection_callback (GConn *connection G_GNUC_UNUSED, GConnEvent *event,
 		break;
 
 	case GNET_CONN_CONNECT:
+		/* TODO: free string */
 		g_debug ("connected to peer %s:%d", gnet_inetaddr_get_canonical_name (self->address), gnet_inetaddr_get_port (self->address));
 		self->status = BT_PEER_STATUS_CONNECTED_SEND;
 		g_signal_emit (self, signals[SIGNAL_CONNECTED], 0);

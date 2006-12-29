@@ -82,15 +82,16 @@ GType    bt_peer_status_get_type ();
 void     bt_peer_set_choking (BtPeer *self, gboolean choked);
 void     bt_peer_set_interesting (BtPeer *self, gboolean choked);
 
-gboolean bt_peer_get_choking (BtPeer *self);
-gboolean bt_peer_get_interesting (BtPeer *self);
-gboolean bt_peer_get_choked (BtPeer *self);
-gboolean bt_peer_get_interested (BtPeer *self);
-
 BtPeer  *bt_peer_new (BtManager *manager, BtTorrent *torrent, GTcpSocket *socket, GInetAddr *address);
 
 void     bt_peer_connect (BtPeer *self);
 gboolean bt_peer_disconnect (BtPeer *self);
+
+void     bt_peer_send_keepalive (BtPeer *self);
+void     bt_peer_send_choke (BtPeer *self);
+void     bt_peer_send_unchoke (BtPeer *self);
+void     bt_peer_send_interested (BtPeer *self);
+void     bt_peer_send_uninterested (BtPeer *self);
 
 void     bt_peer_receive (BtPeer *peer, gchar *buffer, gsize length, gpointer data);
 

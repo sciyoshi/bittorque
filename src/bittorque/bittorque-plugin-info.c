@@ -20,60 +20,38 @@
 
 #include "bittorque-plugin-info.h"
 
-G_DEFINE_TYPE (BtPluginInfo, bt_plugin_info, G_TYPE_OBJECT)
+G_DEFINE_TYPE (BtPluginInfo, bt_plugin_info, G_TYPE_TYPE_MODULE)
 
 enum {
 	PROP_0,
-	PROP_PATH
+	PROP_FILENAME
 };
 
 static gboolean
-bt_plugin_info_find_plugins (BtPluginInfo *self)
+bt_plugin_info_load (GTypeModule *module G_GNUC_UNUSED)
 {
-	GDir *dir;
-	const gchar *name;
-	GError *error = NULL;
-	
-	if (!(dir = g_dir_open (self->path, 0, &error))) {
-		g_warning ("could not open plugin directory: %s", error->message);
-		g_clear_error (&error);
-		return FALSE;
-	}
-	
-	while ((name = g_dir_read_name (dir))) {
-		gchar *path;
-		BtPluginInfo *module;
-		path = g_build_filename (self->path, name, NULL);
-		module = bt_plugin_info_new (path);
-		g_free (path);
-		g_type_module_use (module);
-		g_type_module_unuse (module);
-		self->modules = g_list_prepend (self->modules, module);
-	}
-	
-	g_dir_close (dir);
+	/* TODO */
+	return TRUE;
 }
 
-static GObject *
-bt_plugin_info_constructor (GType type, guint num, GObjectConstructParam *properties)
+static void
+bt_plugin_info_unload (GTypeModule *module)
 {
-	GObject *object;
-	BtPluginInfo *self;
-
-	object = G_OBJECT_CLASS (bt_plugin_info_parent_class)->constructor (type, num, properties);
-	self = BT_PLUGIN_INFO (object);
-
-	if (self->path)
-		bt_plugin_info_find_plugins (self);
-
-	return object;
+	BtPluginInfo *self = BT_PLUGIN_INFO (module);
+	self->unload (self);
+	g_module_close (self->module);
+	self->module = NULL;
+	self->load = NULL;
+	self->unload = NULL;
 }
 
 static void
 bt_plugin_info_init (BtPluginInfo *info)
 {
-	info->path = NULL;
-	info->modules = NULL;
+	info->filename = NULL;
+	info->module = NULL;
+	info->load = NULL;
+	info->unload = NULL;
 }
 
 static void
@@ -82,9 +60,9 @@ bt_plugin_info_set_property (GObject *object, guint property, const GValue *valu
 	BtPluginInfo *self = BT_PLUGIN_INFO (object);
 
 	switch (property) {
-	case PROP_PATH:
-		g_free (self->path);
-		self->path = g_value_dup_string (value);
+	case PROP_FILENAME:
+		g_free (self->filename);
+		self->filename = g_value_dup_string (value);
 		break;
 
 	default:
@@ -99,8 +77,8 @@ bt_plugin_info_get_property (GObject *object, guint property, GValue *value, GPa
 	BtPluginInfo *self = BT_PLUGIN_INFO (object);
 
 	switch (property) {
-	case PROP_PATH:
-		g_value_set_string (value, self->path);
+	case PROP_FILENAME:
+		g_value_set_string (value, self->filename);
 		break;
 
 	default:
@@ -129,21 +107,33 @@ static void
 bt_plugin_info_class_init (BtPluginInfoClass *klass)
 {
 	GObjectClass *gclass;
+	GTypeModuleClass *mclass;
 	GParamSpec *pspec;
 
 	gclass = G_OBJECT_CLASS (klass);
+	mclass = G_TYPE_MODULE_CLASS (klass);
 
 	gclass->set_property = bt_plugin_info_set_property;
 	gclass->get_property = bt_plugin_info_get_property;
-	gclass->constructor = bt_plugin_info_constructor;
 	gclass->finalize = bt_plugin_info_finalize;
 	gclass->dispose = bt_plugin_info_dispose;
+	
+	mclass->load = bt_plugin_info_load;
+	mclass->unload = bt_plugin_info_unload;
 
-	pspec = g_param_spec_string ("path",
-	                             "module path",
-	                             "Directory in which to look for plugins",
+	pspec = g_param_spec_string ("filename",
+	                             "module filename",
+	                             "The filename of this module",
 	                             "",
 	                             G_PARAM_READWRITE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME | G_PARAM_CONSTRUCT_ONLY);
 
-	g_object_class_install_property (gclass, PROP_PATH, pspec);
+	g_object_class_install_property (gclass, PROP_FILENAME, pspec);
+}
+
+BtPluginInfo *
+bt_plugin_info_new (const gchar *filename)
+{
+	g_return_val_if_fail (filename != NULL, NULL);
+	
+	return BT_PLUGIN_INFO (g_object_new (BT_TYPE_PLUGIN_INFO, "filename", filename, NULL));
 }
