@@ -45,6 +45,7 @@ typedef enum {
 
 typedef struct {
 	BtPeerEncryptionStatus status;
+
 #ifdef HAVE_GCRYPT_H
 	gcry_mpi_t x_a;
 	gcry_mpi_t y_a;

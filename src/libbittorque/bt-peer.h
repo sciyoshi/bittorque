@@ -39,37 +39,49 @@ typedef struct _BtPeerClass BtPeerClass;
 #include "bt-manager.h"
 #include "bt-torrent.h"
 
+/* possible status for peer in a state transition type machine */
 typedef enum {
-	BT_PEER_STATUS_CONNECTING,
-	BT_PEER_STATUS_CONNECTED_SEND,
-	BT_PEER_STATUS_CONNECTED_WAIT,
-	BT_PEER_STATUS_SEND_HANDSHAKE,
-	BT_PEER_STATUS_WAIT_HANDSHAKE,
-	BT_PEER_STATUS_DISCONNECTING,
-	BT_PEER_STATUS_DISCONNECTED,
-	BT_PEER_STATUS_IDLE_HAVE,
-	BT_PEER_STATUS_IDLE
+	BT_PEER_STATUS_CONNECTING,     /* waiting for a connection */
+	BT_PEER_STATUS_CONNECTED_SEND, /* we are connected, and since we initiated, send handshake */
+	BT_PEER_STATUS_CONNECTED_WAIT, /* peer connected to us, so wait for his handshake */
+	BT_PEER_STATUS_SEND_HANDSHAKE, /* peer has sent his handshake, so send one back */
+	BT_PEER_STATUS_WAIT_HANDSHAKE, /* we have sent our handshake, so wait for his */
+	BT_PEER_STATUS_DISCONNECTING,  /* trying to disconnect */
+	BT_PEER_STATUS_DISCONNECTED,   /* disconnected */
+	BT_PEER_STATUS_IDLE_HAVE,      /* handshake is complete, and we should send a HAVE */
+	BT_PEER_STATUS_IDLE            /* connected and idle */
 } BtPeerStatus;
 
 struct _BtPeer {
 	GObject parent;
 
-	BtManager *manager;
-	BtTorrent *torrent;
-	GConn     *socket;
-	GInetAddr *address;
+	BtManager   *manager;
+	BtTorrent   *torrent;
+	GTcpSocket  *tcp_socket;
+	GConn       *socket;
+	GInetAddr   *address;
+	gchar       *address_string;
+	
+	gchar       *log_prefix;
+	
+	gchar       *peer_id;
+
+	GSource     *keepalive_source;
+
+	gboolean    alive;
 
 	BtPeerStatus status;
 
-	GString   *buffer;
-	gsize      pos;
+	GString     *buffer;
+	gsize        pos;
 
-	gchar     *bitmask;
+	guchar      *bitmask;
+	gdouble      completion;
 
-	gboolean   choking;
-	gboolean   interesting;
-	gboolean   choked;
-	gboolean   interested;
+	gboolean     choking;
+	gboolean     interesting;
+	gboolean     choked;
+	gboolean     interested;
 };
 
 struct _BtPeerClass {

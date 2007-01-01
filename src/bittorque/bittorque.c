@@ -117,9 +117,9 @@ main (int argc, char *argv[])
 
 	gtk_init (&argc, &argv);
 
-	/* look for the glade file, first in DATADIR, then in current directory */
-	if (g_file_test (DATADIR "/bittorque.glade", G_FILE_TEST_EXISTS))
-		xml = glade_xml_new (DATADIR "/bittorque.glade", NULL, NULL);
+	/* look for the glade file, first in BT_DATA_DIR, then in current directory */
+	if (g_file_test (BT_DATA_DIR "/bittorque.glade", G_FILE_TEST_EXISTS))
+		xml = glade_xml_new (BT_DATA_DIR "/bittorque.glade", NULL, NULL);
 	else if (g_file_test ("bittorque.glade", G_FILE_TEST_EXISTS))
 		xml = glade_xml_new ("bittorque.glade", NULL, NULL);
 
@@ -131,7 +131,7 @@ main (int argc, char *argv[])
 	/* create the BtManager */
 	app.manager = bt_manager_new ();
 
-	if (!bt_manager_set_port (app.manager, 6552, &error)) {
+	if (!bt_manager_set_port (app.manager, 32459, &error)) {
 		g_error ("couldn't set port: %s", error->message);
 		return 1;
 	}
@@ -152,7 +152,7 @@ main (int argc, char *argv[])
 	g_object_unref (xml);
 
 	/* create the status icon */
-	app.icon = gtk_status_icon_new_from_file (DATADIR "/bittorque.png");
+	app.icon = gtk_status_icon_new_from_file (BT_DATA_DIR "/bittorque.png");
 	gtk_status_icon_set_tooltip (app.icon, "BitTorque");
 	gtk_status_icon_set_visible (app.icon, TRUE);
 

@@ -23,6 +23,24 @@
 #include "bt-utils.h"
 #include "bt-peer.h"
 
+static guchar bit_count[] = {
+	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 
+	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 
+	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 
+	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 
+	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 
+	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 
+	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 
+	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 
+	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 
+	4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8};
+
 void
 bt_peer_send_keepalive (BtPeer *self)
 {
@@ -47,7 +65,6 @@ bt_peer_send_unchoke (BtPeer *self)
 	gnet_conn_write (self->socket, buf, 5);
 }
 
-
 void
 bt_peer_send_interested (BtPeer *self)
 {
@@ -71,11 +88,11 @@ bt_peer_send_handshake (BtPeer *self)
 
 	g_return_if_fail (BT_IS_PEER (self) && BT_IS_TORRENT (self->torrent));
 
-	buf[0] = (char) 19;
+	buf[0] = (gchar) 19;
 
 	memcpy (buf + 1, "BitTorrent protocol", 19);
 
-	memset (buf + 20, '\0', 8);
+	memset (buf + 20, 0, 8);
 
 	memcpy (buf + 28, self->torrent->infohash, 20);
 
@@ -83,11 +100,52 @@ bt_peer_send_handshake (BtPeer *self)
 
 	gnet_conn_write (self->socket, buf, 68);
 
+	g_debug ("sent handshake");
+
 	if (self->status == BT_PEER_STATUS_CONNECTED_SEND) {
-		gnet_conn_read (self->socket);
+		self->status = BT_PEER_STATUS_WAIT_HANDSHAKE;
+	} else {
+		self->status = BT_PEER_STATUS_IDLE_HAVE;
 	}
 
 	return;
+}
+
+void
+bt_peer_send_have (BtPeer *self)
+{
+	
+}
+
+gboolean
+bt_peer_parse_peer_id (BtPeer *self, GError **error)
+{
+	gchar *buf;
+	
+	g_return_val_if_fail (BT_IS_PEER (self) && BT_IS_TORRENT (self->torrent), FALSE);
+	
+	if (self->pos < 20)
+		return FALSE;
+	
+	buf = self->buffer->str;
+	
+	self->peer_id = g_strndup (buf, 20);
+	
+	g_string_erase (self->buffer, 0, 20);
+	self->pos -= 20;
+	
+	if (memcmp (self->peer_id, self->manager->peer_id , 20) == 0) {
+		g_set_error (error, BT_ERROR, BT_ERROR_PEER_HANDSHAKE, "connected to ourselves");
+		return FALSE;
+	}
+	
+	g_free (self->log_prefix);
+	
+	self->log_prefix = g_strdup_printf ("%s::Peer::%s", self->torrent->log_domain, self->peer_id);
+	
+	g_debug ("valid handshake received");
+	
+	return TRUE;
 }
 
 gboolean
@@ -97,7 +155,6 @@ bt_peer_parse_handshake (BtPeer *self, GError **error)
 
 	if (self->pos < 48) {
 		/* we need more */
-		gnet_conn_read (self->socket);
 		return FALSE;
 	}
 
@@ -121,13 +178,16 @@ bt_peer_parse_handshake (BtPeer *self, GError **error)
 	g_string_erase (self->buffer, 0, 48);
 	self->pos -= 48;
 
-	g_debug ("valid handshake received");
+	if (self->pos > 0)
+		if (!bt_peer_parse_peer_id (self, error))
+			return FALSE;
 
 	if (self->status == BT_PEER_STATUS_CONNECTED_WAIT) {
+		self->status = BT_PEER_STATUS_SEND_HANDSHAKE;
 		bt_peer_send_handshake (self);
+	} else {
+		self->status = BT_PEER_STATUS_IDLE_HAVE;
 	}
-
-	self->status = BT_PEER_STATUS_IDLE;
 
 	return TRUE;
 
@@ -153,34 +213,130 @@ bt_peer_receive (BtPeer *self, gchar *buf, gsize len, gpointer data G_GNUC_UNUSE
 
 	switch (self->status) {
 	case BT_PEER_STATUS_CONNECTED_WAIT:
+	case BT_PEER_STATUS_WAIT_HANDSHAKE:
 		if (!bt_peer_parse_handshake (self, &error)) {
+			/* maybe we just need more data, so make sure an error occured */
 			if (error != NULL) {
-				if (g_error_matches (error, BT_ERROR, BT_ERROR_PEER_HANDSHAKE)) {
-
-				}
-				g_warning (error->message);
+				if (g_error_matches (error, BT_ERROR, BT_ERROR_PEER_HANDSHAKE))
+					g_debug ("closing peer connection: %s", error->message);
+				else
+					g_warning (error->message);
 				g_clear_error (&error);
 				bt_idle_source_create (self->manager, (GSourceFunc) bt_peer_disconnect, self);
+				return;
 			}
-			break;
 		}
 
 		break;
 
-	case BT_PEER_STATUS_WAIT_HANDSHAKE:
-		if (!bt_peer_parse_handshake (self, &error)) {
-			if (error != NULL) {
-				g_warning (error->message);
-				g_clear_error (&error);
-				bt_idle_source_create (self->manager, (GSourceFunc) bt_peer_disconnect, self);
+	case BT_PEER_STATUS_IDLE_HAVE:
+		if (self->peer_id == NULL) {
+			if (!bt_peer_parse_peer_id (self, &error)) {
+				/* maybe we just need more data, so make sure an error occured */
+				if (error != NULL) {
+					g_warning (error->message);
+					g_clear_error (&error);
+					bt_idle_source_create (self->manager, (GSourceFunc) bt_peer_disconnect, self);
+					return;
+				}
 			}
+		}
+		
+		if (!self->peer_id)
+			break;
+		
+		bt_peer_send_have (self);
+		
+		self->status = BT_PEER_STATUS_IDLE;
+		
+		/* fall through */
+
+	case BT_PEER_STATUS_IDLE:
+		/* use these as local variables, we won't need them anymore */
+		buf = self->buffer->str;
+		len = self->buffer->len;
+		
+		/* we need at least 4 bytes */
+		if (len < 4)
+			break;
+		
+		guint32 msglen = g_ntohl (*((guint32 *) buf));
+		
+		g_print ("message is length %d\n", msglen);
+		
+		/* keepalive */
+		if (msglen == 0) {
+			self->alive = TRUE;
+			g_string_erase (self->buffer, 0, 4);
+			self->pos -= 4;
 			break;
 		}
+		
+		if (len < msglen + 4)
+			break;
+		
+		gchar message = buf[4];
+		
+		g_print ("message is %d\n", message);
+		
+		guint i, count;
+		guchar *bitmask;
+		
+		switch (message) {
+		case 0:
+			self->choked = TRUE;
+			break;
+				
+		case 1:
+			self->choked = FALSE;
+			break;
+			
+		case 2:
+			self->interested = TRUE;
+			break;
+			
+		case 3:
+			self->interested = FALSE;
+			break;
+			
+		case 4:
+			break;
+			
+		case 5:
+			/* bitfield */
+			bitmask = self->bitmask = g_memdup (buf + 5, msglen - 1);
+			for (i = 0; i < msglen - 2; i++)
+				count += bit_count[bitmask[i]];
+			g_print ("last one has %d, total %d\n", bitmask[msglen - 2], self->torrent->size / self->torrent->piece_length);
+			break;
+
+		case 6:
+			
+			break;
+			
+		case 7:
+			
+			break;
+		
+		case 8:
+			
+			break;
+		
+		case 9:
+			break;
+		
+		default:
+			break;
+		}
+		
 		break;
 
 	default:
 		break;
 	}
+	
+	
+	gnet_conn_read (self->socket);
 
 	return;
 }

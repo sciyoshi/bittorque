@@ -29,8 +29,6 @@
 #include "bt-bencode.h"
 #include "sha1.h"
 
-static const char hex_alphabet[] = "0123456789ABCDEF";
-
 static const GEnumValue bt_error_values[] = {
 	{BT_ERROR_NETWORK,               "BT_ERROR_NETWORK",               "network"},
 	{BT_ERROR_RESOLVING,             "BT_ERROR_RESOLVING",             "resolving"},
@@ -56,6 +54,44 @@ GQuark
 bt_error_get_quark ()
 {
 	return g_quark_from_static_string ("bittorque");
+}
+
+static gpointer
+bt_tcp_socket_copy (gpointer socket)
+{
+	gnet_tcp_socket_ref ((GTcpSocket *) socket);
+	return socket;
+}
+
+GType
+bt_tcp_socket_get_type ()
+{
+	static GType type = 0;
+	
+	if (G_UNLIKELY (type == 0)) {
+		type = g_boxed_type_register_static ("BtTcpSocket", bt_tcp_socket_copy, (GBoxedFreeFunc) gnet_tcp_socket_unref);
+	}
+	
+	return type;
+}
+
+static gpointer
+bt_inet_addr_copy (gpointer addr)
+{
+	gnet_inetaddr_ref ((GInetAddr *) addr);
+	return addr;
+}
+
+GType
+bt_inet_addr_get_type ()
+{
+	static GType type = 0;
+	
+	if (G_UNLIKELY (type == 0)) {
+		type = g_boxed_type_register_static ("BtInetAddr", bt_inet_addr_copy, (GBoxedFreeFunc) gnet_inetaddr_unref);
+	}
+	
+	return type;
 }
 
 gboolean
@@ -174,3 +210,43 @@ bt_idle_source_create (BtManager *manager, GSourceFunc callback, gpointer data)
 	bt_manager_add_source (manager, source);
 	return source;
 }
+
+
+gchar *
+bt_client_name_from_id (gchar *id)
+{
+	if (id[0] == '-' && id[7] == '-') {
+		if (!memcmp (&id[1], "TR", 2))
+			return g_strdup_printf ("Transmission %d.%d", (id[3] - '0') * 10 + (id[4] - '0'), (id[5] - '0') * 10 + (id[6] - '0'));
+
+		if (!memcmp (&id[1], "AZ", 2))
+			return g_strdup_printf ("Azureus %c.%c.%c.%c", id[3], id[4], id[5], id[6]);
+
+		if (!memcmp (&id[1], "TS", 2))
+			return g_strdup_printf ("TorrentStorm (%c%c%c%c)", id[3], id[4], id[5], id[6]);
+
+		if (!memcmp (&id[1], "BC", 2))
+			return g_strdup_printf ("BitComet %d.%c%c", (id[3] - '0') * 10 + (id[4] - '0'), id[5], id[6]);
+
+		if (!memcmp (&id[1], "SZ", 2))
+			return g_strdup_printf ("Shareaza %c.%c.%c.%c", id[3], id[4], id[5], id[6]);
+	}
+
+	if (!memcmp (&id[4], "----", 4)) {
+		if(id[0] == 'T')
+			return g_strdup_printf ("BitTornado (%c%c%c)", id[1], id[2], id[3]);
+
+		else if(id[0] == 'A')
+			return g_strdup_printf ("ABC (%c%c%c)", id[1], id[2], id[3]);
+	}
+	
+	if (id[0] == 'M' && id[2] == '-' && id[4] == '-' && id[6] == '-' && id[7] == '-')
+		return g_strdup_printf ("BitTorrent %c.%c.%c", id[1], id[3], id[5]);
+
+	if (!memcmp (id, "exbc", 4))
+		return g_strdup_printf ("BitComet %d.%02d", id[4], id[5]);
+
+
+	return g_strdup_printf ("Unknown client (%c%c%c%c%c%c%c%c)", id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7]);
+}
+

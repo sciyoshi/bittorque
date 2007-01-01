@@ -34,8 +34,15 @@ G_DEFINE_TYPE (BtTorrent, bt_torrent, G_TYPE_OBJECT)
 enum {
 	PROP_0,
 	PROP_NAME,
-	PROP_SIZE
+	PROP_SIZE,
+	PROP_MANAGER,
+	PROP_FILENAME,
+	PROP_PIECE_LENGTH,
+	PROP_NUM_PIECES,
+	PROP_LOCATION
 };
+
+/* gtype for the torrent priority enumeration */
 
 static const GEnumValue bt_torrent_priority_enum_values[] = {
 	{BT_TORRENT_PRIORITY_LOW,    "BT_TORRENT_PRIORITY_LOW",    "low"},
@@ -53,6 +60,8 @@ bt_torrent_priority_get_type ()
 	
 	return type;
 }
+
+/* gboxed type holding the information for a single file in a torrent */
 
 static gpointer
 bt_torrent_file_copy (BtTorrentFile *file)
@@ -93,7 +102,7 @@ bt_torrent_file_get_type ()
  */
 
 static gboolean
-bt_torrent_parse_file (BtTorrent *self, gchar *filename, GError **error)
+bt_torrent_parse_file (BtTorrent *self, const gchar *filename, GError **error)
 {
 	BtBencode *metainfo, *info, *announce, *announce_list, *name, *length, *files, *pieces, *piece_length;
 	gchar *contents;
@@ -126,6 +135,8 @@ bt_torrent_parse_file (BtTorrent *self, gchar *filename, GError **error)
 	bt_infohash (info, self->infohash);
 	bt_hash_to_string (self->infohash, self->infohash_string);
 	g_debug ("torrent info hash: %s", self->infohash_string);
+	
+	self->log_domain = g_strdup_printf ("BitTorque::Torrent::%s", self->infohash_string);
 
 	/* find out how to announce to the tracker(s) */
 	/* TODO: PROTOCOL: should we be more lenient about missing announce if there is an announce-list? */
@@ -269,6 +280,8 @@ bt_torrent_check_peers (BtTorrent *self)
 gboolean
 bt_torrent_start_downloading (BtTorrent *self)
 {
+	g_debug ("starting torrent download");
+	
 	self->check_peers_source = bt_timeout_source_create (self->manager, 5000, (GSourceFunc) bt_torrent_check_peers, self);
 
 	self->announce_source = bt_idle_source_create (self->manager, (GSourceFunc) bt_torrent_announce, self);
@@ -300,12 +313,47 @@ bt_torrent_add_peer (BtTorrent *self, BtPeer *peer)
 	return TRUE;
 }
 
-static void
-bt_torrent_set_property (GObject *object, guint property, const GValue *value G_GNUC_UNUSED, GParamSpec *pspec)
+void
+bt_torrent_set_location (BtTorrent *self, const gchar *location)
 {
-	BtTorrent *self G_GNUC_UNUSED = BT_TORRENT (object);
+	g_object_set (G_OBJECT (self), "location", location, NULL);
+}
+
+/* gobject type functions */
+
+static void
+bt_torrent_set_property (GObject *object, guint property, const GValue *value, GParamSpec *pspec)
+{
+	BtTorrent *self = BT_TORRENT (object);
+	GError *error = NULL;
 
 	switch (property) {
+	case PROP_MANAGER:
+		self->manager = BT_MANAGER (g_value_dup_object (value));
+		break;
+	
+	case PROP_FILENAME:
+		if (self->filename != NULL) {
+			/* TODO: copy the .torrent file to the new filename */
+			g_free (self->filename);
+		} else {
+			if (!bt_torrent_parse_file (self, g_value_get_string (value), &error)) {
+				g_warning ("error parsing .torrent file: %s", error->message);
+				g_clear_error (&error);
+				g_object_unref (self);
+				break;
+			}
+		}
+		self->filename = g_value_dup_string (value);
+		break;
+	
+	case PROP_LOCATION:
+		if (self->location != NULL) {
+			g_free (self->location);
+		}
+		self->location = g_value_dup_string (value);
+		break;
+	
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property, pspec);
 		break;
@@ -326,6 +374,26 @@ bt_torrent_get_property (GObject *object, guint property, GValue *value, GParamS
 		g_value_set_uint64 (value, self->size);
 		break;
 	
+	case PROP_PIECE_LENGTH:
+		g_value_set_ulong (value, self->piece_length);
+		break;
+	
+	case PROP_NUM_PIECES:
+		g_value_set_ulong (value, self->num_pieces);
+		break;
+	
+	case PROP_MANAGER:
+		g_value_set_object (value, self->manager);
+		break;
+	
+	case PROP_FILENAME:
+		g_value_set_string (value, self->filename);
+		break;
+	
+	case PROP_LOCATION:
+		g_value_set_string (value, self->location);
+		break;
+	
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property, pspec);
 		break;
@@ -341,6 +409,8 @@ bt_torrent_init (BtTorrent *torrent)
 	torrent->name = NULL;
 	torrent->size = 0;
 	torrent->piece_length = 0;
+	torrent->filename = NULL;
+	torrent->log_domain = g_strdup (G_LOG_DOMAIN);
 	torrent->files = g_array_new (FALSE, TRUE, sizeof (BtTorrentFile));
 	torrent->check_peers_source = NULL;
 	torrent->announce_source = NULL;
@@ -380,6 +450,7 @@ bt_torrent_finalize (GObject *torrent)
 	g_free (self->tracker_id);
 	g_free (self->announce);
 	g_free (self->name);
+	g_free (self->log_domain);
 	g_string_free (self->cache, TRUE);
 	g_array_free (self->files, TRUE);
 
@@ -414,6 +485,46 @@ bt_torrent_class_init (BtTorrentClass *klass)
 	                             G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
 
 	g_object_class_install_property (gclass, PROP_SIZE, pspec);
+	
+	pspec = g_param_spec_ulong ("piece-length",
+	                            "piece length",
+	                            "The length of each piece in bytes",
+	                            0, G_MAXULONG, 0,
+	                            G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+
+	g_object_class_install_property (gclass, PROP_PIECE_LENGTH, pspec);
+	
+	pspec = g_param_spec_ulong ("num-pieces",
+	                            "total number of pieces",
+	                            "The number of pieces, including the last (possibly partial) one",
+	                            0, G_MAXULONG, 0,
+	                            G_PARAM_READABLE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+
+	g_object_class_install_property (gclass, PROP_PIECE_LENGTH, pspec);
+	
+	pspec = g_param_spec_object ("manager",
+	                             "torrent manager",
+	                             "The manager for this torrent",
+	                             BT_TYPE_MANAGER,
+	                             G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+
+	g_object_class_install_property (gclass, PROP_MANAGER, pspec);
+	
+	pspec = g_param_spec_string ("filename",
+	                             ".torrent filename",
+	                             "The name of the .torrent file - set this property to move the .torrent to a new location",
+	                             "",
+	                             G_PARAM_READWRITE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+
+	g_object_class_install_property (gclass, PROP_FILENAME, pspec);
+	
+	pspec = g_param_spec_string ("location",
+	                             "download location",
+	                             "Where to download files - setting this a second time will move the files to a new location",
+	                             "",
+	                             G_PARAM_READWRITE | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NAME);
+
+	g_object_class_install_property (gclass, PROP_LOCATION, pspec);
 }
 
 /**
@@ -423,16 +534,7 @@ bt_torrent_class_init (BtTorrentClass *klass)
  */
 
 BtTorrent *
-bt_torrent_new (BtManager *manager, gchar *filename, GError **error)
+bt_torrent_new (BtManager *manager, const gchar *filename)
 {
-	BtTorrent *torrent = BT_TORRENT (g_object_new (BT_TYPE_TORRENT, NULL));
-
-	if (!bt_torrent_parse_file (torrent, filename, error)) {
-		g_object_unref (torrent);
-		return NULL;
-	}
-
-	torrent->manager = g_object_ref (manager);
-
-	return torrent;
+	return BT_TORRENT (g_object_new (BT_TYPE_TORRENT, "filename", filename, "manager", manager, NULL));
 }

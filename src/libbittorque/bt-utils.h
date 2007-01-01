@@ -31,6 +31,11 @@
 #define BT_TYPE_ERROR (bt_error_get_type ())
 #define BT_ERROR (bt_error_get_quark ())
 
+#define BT_TYPE_TCP_SOCKET (bt_tcp_socket_get_type ())
+#define BT_TYPE_INET_ADDR (bt_inet_addr_get_type ())
+
+static const char hex_alphabet[] = "0123456789ABCDEF";
+
 typedef enum {
 	BT_ERROR_NETWORK,
 	BT_ERROR_RESOLVING,
@@ -45,6 +50,10 @@ GType    bt_error_get_type ();
 
 GQuark   bt_error_get_quark ();
 
+GType    bt_tcp_socket_get_type ();
+
+GType    bt_inet_addr_get_type ();
+
 gboolean bt_infohash (BtBencode *info, gchar hash[20]);
 
 gboolean bt_create_peer_id (gchar id[21]);
@@ -58,5 +67,7 @@ GSource *bt_io_source_create (BtManager *manager, GIOChannel *channel, GIOCondit
 GSource *bt_timeout_source_create (BtManager *manager, guint timeout, GSourceFunc callback, gpointer data);
 
 GSource *bt_idle_source_create (BtManager *manager, GSourceFunc callback, gpointer data);
+
+gchar   *bt_client_name_from_id (gchar *id);
 
 #endif
