@@ -34,7 +34,8 @@ opts = Options('config', ARGUMENTS)
 opts.AddOptions(
 	BoolOption('enable_debug', 'Enable debug symbols', 1),
 	EnumOption('enable_python', 'Enable building Python module', 'auto', allowed_values=('auto', 'yes', 'no'), ignorecase=1),
-	PathOption('python_include_dir', 'Path for Python headers', '/usr/include/python2.4'))
+	PathOption('python_include_dir', 'Path for Python headers', '/usr/include/python2.4'),
+	PathOption('data_dir', 'Path to search for images and other data', Dir('#/data').abspath))
 
 env = Environment(options=opts, tools=['mingw', 'default', 'disttar'], toolpath=['tools'], ENV=os.environ)
 
@@ -112,24 +113,26 @@ env = conf.Finish()
 
 env.ParseConfig('pkg-config --cflags --libs glib-2.0 gobject-2.0 gthread-2.0 gnet-2.0')
 env.Append(CCFLAGS=['-Wall', '-Wextra'])
+
 if env['enable_debug']:
 	env.Append(CCFLAGS=['-g'])
+
 env.Append(CPPDEFINES=['-DGNET_EXPERIMENTAL'])
 
 if have_gcrypt:
 	env.Append(CPPDEFINES=['-DHAVE_GCRYPT_H'])
 	env.ParseConfig('libgcrypt-config --cflags --libs')
 
-env.Append(CPPDEFINES=['-DDATADIR=\\"/home/sciyoshi/Projects/bittorque/data\\"'])
+env.Append(CPPDEFINES=['-DBT_DATA_DIR=\\"' + env['data_dir'] + '\\"'])
 env.Append(CPPPATH=[])
 
 envlib = env.Copy()
-envlib.Append(CPPDEFINES=['-DG_LOG_DOMAIN=\\"Bittorque\\"'])
+envlib.Append(CPPDEFINES=['-DG_LOG_DOMAIN=\\"BitTorque\\"'])
 
 envgtk = env.Copy()
 envgtk.Append(LINKFLAGS=['-Wl,--export-dynamic'])
 envgtk.Append(LIBPATH=['#/src/libbittorque'])
-envgtk.Append(LIBS=['bittorque'])
+envgtk.Append(LIBS=['bittorque', 'gnet-2.0'])
 envgtk.ParseConfig('pkg-config --cflags --libs gtk+-2.0 libglade-2.0 glib-2.0 gmodule-2.0 gnet-2.0')
 
 if env['enable_python'] == 'yes':

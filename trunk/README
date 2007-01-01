@@ -25,3 +25,16 @@ from the command line to build everything.
 Code should be indented with (approximately)
 
 indent -kr -ts8 -i8 -pcs -l300
+
+== Configuring ==
+
+HAVE_GMP_H
+HAVE_GCRYPT_H
+
+BT_ENABLE_ENCRYPTION
+
+BT_DATA_DIR
+
+== Structure ==
+
+

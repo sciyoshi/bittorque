@@ -60,14 +60,20 @@ struct _BtTorrent {
 
 	BtManager *manager;
 
+	gchar     *filename;
+	gchar     *location;
+
 	gchar     *name;
 	gchar     *announce;
 	GSList    *announce_list;
 	gchar      infohash[20];
 	gchar      infohash_string[41];
+	gchar     *log_domain;
 	gint64     size;
 	gchar     *peer_id;
 	gsize      piece_length;
+	guint      num_pieces;
+	gdouble    completion;
 	GArray    *files;
 
 	GConnHttp *tracker_socket;
@@ -96,9 +102,11 @@ GType      bt_torrent_file_get_type ();
 
 GType      bt_torrent_get_type ();
 
-BtTorrent *bt_torrent_new (BtManager *manager, gchar *filename, GError **error);
+BtTorrent *bt_torrent_new (BtManager *manager, const gchar *filename);
 
-gboolean   bt_torrent_start_downloading (BtTorrent * torrent);
+void       bt_torrent_set_location (BtTorrent *torrent, const gchar *location);
+
+gboolean   bt_torrent_start_downloading (BtTorrent *torrent);
 
 gboolean   bt_torrent_announce (BtTorrent *torrent);
 

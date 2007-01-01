@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.0.2 on Thu Dec 28 23:17:38 2006 by sciyoshi@yoshiba
+<!--Generated with glade3 3.0.2 on Sat Dec 30 00:57:38 2006 by sciyoshi@yoshiba
 	Version: 3.0.1
 	Date: Sun Sep 24 02:50:05 2006
 	User: sciyoshi
@@ -158,6 +158,7 @@
         <child>
           <widget class="GtkToolbar" id="toolbar">
             <property name="visible">True</property>
+            <property name="icon_size">GTK_ICON_SIZE_SMALL_TOOLBAR</property>
             <child>
               <widget class="GtkToolButton" id="toolbutton1">
                 <property name="visible">True</property>
@@ -858,7 +859,7 @@ High</property>
                 <property name="visible">True</property>
                 <property name="label" translatable="yes">gtk-cancel</property>
                 <property name="use_stock">True</property>
-                <property name="response_id">2</property>
+                <property name="response_id">-2</property>
               </widget>
             </child>
             <child>
@@ -866,7 +867,7 @@ High</property>
                 <property name="visible">True</property>
                 <property name="label" translatable="yes">gtk-open</property>
                 <property name="use_stock">True</property>
-                <property name="response_id">1</property>
+                <property name="response_id">-3</property>
               </widget>
               <packing>
                 <property name="position">1</property>

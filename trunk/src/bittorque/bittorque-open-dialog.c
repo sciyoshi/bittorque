@@ -20,6 +20,7 @@
 
 
 #include "bittorque.h"
+#include "gnet.h"
 
 enum {
 	COLUMN_TORRENT,
@@ -165,11 +166,9 @@ open_dialog_add_file (gchar *filename)
 
 	error = NULL;
 
-	if (!(torrent = bt_torrent_new (app.manager, filename, &error))) {
-		g_warning ("could not add torrent: %s", error->message);
-		g_clear_error (&error);
-		return FALSE;
-	}
+	torrent = bt_torrent_new (app.manager, filename);
+	
+	g_return_val_if_fail (BT_IS_TORRENT (torrent), FALSE);
 
 	gtk_list_store_append (list, &iter);
 	gtk_list_store_set (list, &iter, COLUMN_TORRENT, torrent, COLUMN_LOCATION, g_get_home_dir (), COLUMN_PRIORITY, BT_TORRENT_PRIORITY_NORMAL, COLUMN_SUPER_SEEDING, FALSE, -1);
@@ -255,6 +254,11 @@ open_dialog_run (gchar *filename)
 	GtkWidget *files_view;
 	GtkTreeViewColumn *col;
 	GtkCellRenderer *cell;
+	GtkTreeIter iter;
+	BtTorrent *torrent;
+	gchar *location;
+	gboolean valid;
+	gint response;
 
 	view = app.open_dialog_torrents_treeview;
 	files_view = app.open_dialog_files_treeview;
@@ -273,6 +277,8 @@ open_dialog_run (gchar *filename)
 		gtk_tree_view_append_column (GTK_TREE_VIEW (view), col);
 		
 		g_signal_connect (gtk_tree_view_get_selection (GTK_TREE_VIEW (view)), "changed", G_CALLBACK (open_dialog_selection_changed), NULL);
+	} else {
+		list = GTK_LIST_STORE (gtk_tree_view_get_model (GTK_TREE_VIEW (view)));
 	}
 	
 	if (gtk_tree_view_get_model (GTK_TREE_VIEW (files_view)) == NULL) {
@@ -293,6 +299,8 @@ open_dialog_run (gchar *filename)
 		gtk_tree_view_column_pack_start (col, cell, TRUE);
 		gtk_tree_view_column_set_cell_data_func (col, cell, open_dialog_files_name_cell_renderer_func, NULL, NULL);
 		gtk_tree_view_append_column (GTK_TREE_VIEW (files_view), col);
+	} else {
+		files = GTK_LIST_STORE (gtk_tree_view_get_model (GTK_TREE_VIEW (files_view)));
 	}
 	
 	if (filename)
@@ -305,7 +313,31 @@ open_dialog_run (gchar *filename)
 
 	gtk_combo_box_set_active (GTK_COMBO_BOX (priority), 1);
 
-	gtk_dialog_run (GTK_DIALOG (dialog));
+	response = gtk_dialog_run (GTK_DIALOG (dialog));
+
+	switch (response) {
+		case GTK_RESPONSE_REJECT:
+			break;
+
+		case GTK_RESPONSE_ACCEPT:
+			valid = gtk_tree_model_get_iter_first (GTK_TREE_MODEL (list), &iter);
+			
+			while (valid) {
+				gtk_tree_model_get (GTK_TREE_MODEL (list), &iter, COLUMN_TORRENT, &torrent, COLUMN_LOCATION, &location, -1);
+				bt_torrent_set_location (torrent, location);
+				g_free (location);
+				bt_torrent_add_peer (torrent, bt_peer_new (app.manager, torrent, NULL, gnet_inetaddr_new ("127.0.0.1", 6838)));
+				bt_manager_add_torrent (app.manager, torrent);
+				bt_torrent_start_downloading (torrent);
+				g_object_unref (torrent);
+				valid = gtk_tree_model_iter_next (GTK_TREE_MODEL (list), &iter);
+			};
+			
+			break;
+
+		default:
+			break;
+	}
 
 	gtk_widget_hide (dialog);
 	
