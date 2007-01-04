@@ -67,100 +67,6 @@
 )
 
 
-;; From bt-manager.h
-
-(define-function bt_manager_get_type
-  (c-name "bt_manager_get_type")
-  (return-type "GType")
-  (parameters
-  )
-)
-
-(define-function bt_manager_new
-  (c-name "bt_manager_new")
-  (is-constructor-of "BtManager")
-  (return-type "BtManager*")
-  (parameters
-  )
-)
-
-(define-function bt_manager_new_with_main
-  (c-name "bt_manager_new_with_main")
-  (return-type "BtManager*")
-  (parameters
-    '("GMainContext*" "context")
-  )
-)
-
-(define-method add_source
-  (of-object "BtManager")
-  (c-name "bt_manager_add_source")
-  (return-type "guint")
-  (parameters
-    '("GSource*" "source")
-  )
-)
-
-(define-method accept_start
-  (of-object "BtManager")
-  (c-name "bt_manager_accept_start")
-  (return-type "gboolean")
-  (parameters
-    '("GError**" "error")
-  )
-)
-
-(define-method accept_stop
-  (of-object "BtManager")
-  (c-name "bt_manager_accept_stop")
-  (return-type "none")
-)
-
-(define-method set_port
-  (of-object "BtManager")
-  (c-name "bt_manager_set_port")
-  (return-type "gboolean")
-  (parameters
-    '("gushort" "port")
-    '("GError**" "error")
-  )
-)
-
-(define-method get_port
-  (of-object "BtManager")
-  (c-name "bt_manager_get_port")
-  (return-type "gushort")
-)
-
-(define-method add_torrent
-  (of-object "BtManager")
-  (c-name "bt_manager_add_torrent")
-  (return-type "none")
-  (parameters
-    '("BtTorrent*" "torrent")
-  )
-)
-
-(define-method get_torrent
-  (of-object "BtManager")
-  (c-name "bt_manager_get_torrent")
-  (return-type "BtTorrent*")
-  (parameters
-    '("gchar*" "infohash")
-  )
-)
-
-(define-method get_torrent_string
-  (of-object "BtManager")
-  (c-name "bt_manager_get_torrent_string")
-  (return-type "BtTorrent*")
-  (parameters
-    '("gchar*" "infohash")
-  )
-)
-
-
-
 ;; From bt-peer.h
 
 (define-function bt_peer_get_type
@@ -199,11 +105,11 @@
   (c-name "bt_peer_new")
   (is-constructor-of "BtPeer")
   (return-type "BtPeer*")
-  (parameters
-    '("BtManager*" "manager")
-    '("BtTorrent*" "torrent")
-    '("GTcpSocket*" "socket")
-    '("GInetAddr*" "address")
+  (properties
+    '("manager" (argname "BtManager*"))
+    '("torrent" (argname "BtTorrent*") (optional))
+    '("socket" (argname "GTcpSocket*") (optional))
+    '("address" (argname "GInetAddr*") (optional))
   )
 )
 
@@ -295,10 +201,18 @@
   (c-name "bt_torrent_new")
   (is-constructor-of "BtTorrent")
   (return-type "BtTorrent*")
+  (properties
+    '("manager" (argname "BtManager"))
+    '("filename" (argname "const-gchar*"))
+  )
+)
+
+(define-method set_location
+  (of-object "BtTorrent")
+  (c-name "bt_torrent_set_location")
+  (return-type "none")
   (parameters
-    '("BtManager*" "manager")
-    '("gchar*" "filename")
-    '("GError**" "error")
+    '("const-gchar*" "location")
   )
 )
 
@@ -347,20 +261,32 @@
   )
 )
 
-(define-function bt_infohash
-  (c-name "bt_infohash")
-  (return-type "gboolean")
+(define-function bt_tcp_socket_get_type
+  (c-name "bt_tcp_socket_get_type")
+  (return-type "GType")
+  (parameters
+  )
+)
+
+(define-function bt_inet_addr_get_type
+  (c-name "bt_inet_addr_get_type")
+  (return-type "GType")
+  (parameters
+  )
+)
+
+(define-function bt_get_info_hash
+  (c-name "bt_get_info_hash")
+  (return-type "gchar*")
   (parameters
     '("BtBencode*" "info")
-    '("gchar-hash" "[20]")
   )
 )
 
 (define-function bt_create_peer_id
   (c-name "bt_create_peer_id")
-  (return-type "gboolean")
+  (return-type "gchar*")
   (parameters
-    '("gchar-id" "[21]")
   )
 )
 
@@ -375,10 +301,17 @@
 
 (define-function bt_hash_to_string
   (c-name "bt_hash_to_string")
-  (return-type "gboolean")
+  (return-type "gchar*")
   (parameters
-    '("gchar-hash" "[20]")
-    '("gchar-string" "[41]")
+    '("const-gchar*" "hash")
+  )
+)
+
+(define-function bt_client_name_from_id
+  (c-name "bt_client_name_from_id")
+  (return-type "gchar*")
+  (parameters
+    '("const-gchar*" "id")
   )
 )
 
@@ -412,6 +345,101 @@
     '("BtManager*" "manager")
     '("GSourceFunc" "callback")
     '("gpointer" "data")
+  )
+)
+
+
+
+;; From bt-manager.h
+
+(define-function bt_manager_get_type
+  (c-name "bt_manager_get_type")
+  (return-type "GType")
+  (parameters
+  )
+)
+
+(define-function bt_manager_new
+  (c-name "bt_manager_new")
+  (is-constructor-of "BtManager")
+  (return-type "BtManager*")
+  (properties
+   '("context" (argname "GMainContext*") (optional))
+  )
+)
+
+(define-function bt_manager_new_with_main
+  (c-name "bt_manager_new_with_main")
+  (return-type "BtManager*")
+  (parameters
+    '("GMainContext*" "context")
+  )
+)
+
+(define-method add_source
+  (of-object "BtManager")
+  (c-name "bt_manager_add_source")
+  (return-type "guint")
+  (parameters
+    '("GSource*" "source")
+  )
+)
+
+(define-method accept_start
+  (of-object "BtManager")
+  (c-name "bt_manager_accept_start")
+  (return-type "gboolean")
+  (parameters
+    '("GError**" "error")
+  )
+)
+
+(define-method accept_stop
+  (of-object "BtManager")
+  (c-name "bt_manager_accept_stop")
+  (return-type "none")
+)
+
+(define-method set_port
+  (of-object "BtManager")
+  (c-name "bt_manager_set_port")
+  (return-type "gboolean")
+  (parameters
+    '("gushort" "port")
+    '("GError**" "error")
+  )
+)
+
+(define-method get_port
+  (of-object "BtManager")
+  (c-name "bt_manager_get_port")
+  (return-type "gushort")
+)
+
+(define-method add_torrent
+  (of-object "BtManager")
+  (c-name "bt_manager_add_torrent")
+  (return-type "none")
+  (parameters
+    '("BtTorrent*" "torrent")
+  )
+)
+
+(define-method get_torrent
+  (of-object "BtManager")
+  (c-name "bt_manager_get_torrent")
+  (return-type "BtTorrent*")
+  (parameters
+    '("const-gchar*" "infohash")
+  )
+)
+
+(define-method get_torrent_string
+  (of-object "BtManager")
+  (c-name "bt_manager_get_torrent_string")
+  (return-type "BtTorrent*")
+  (parameters
+    '("const-gchar*" "infohash")
   )
 )
 

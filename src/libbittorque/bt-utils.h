@@ -22,7 +22,6 @@
 #define __BT_UTILS_H__
 
 #include <glib.h>
-
 #include <gnet.h>
 
 #include "bt-bencode.h"
@@ -31,11 +30,16 @@
 #define BT_TYPE_ERROR (bt_error_get_type ())
 #define BT_ERROR (bt_error_get_quark ())
 
+/* wrapper type for GTcpSocket */
 #define BT_TYPE_TCP_SOCKET (bt_tcp_socket_get_type ())
+
+/* wrapper type for GInetAddr */
 #define BT_TYPE_INET_ADDR (bt_inet_addr_get_type ())
 
-static const char hex_alphabet[] = "0123456789ABCDEF";
+/* the hexadecimal alphabet if needed */
+static const char bt_hex_alphabet[] = "0123456789ABCDEF";
 
+/* possible error domains */
 typedef enum {
 	BT_ERROR_NETWORK,
 	BT_ERROR_RESOLVING,
@@ -54,20 +58,20 @@ GType    bt_tcp_socket_get_type ();
 
 GType    bt_inet_addr_get_type ();
 
-gboolean bt_infohash (BtBencode *info, gchar hash[20]);
+gchar   *bt_get_info_hash (BtBencode *info);
 
-gboolean bt_create_peer_id (gchar id[21]);
+gchar   *bt_create_peer_id ();
 
 gchar   *bt_url_encode (const gchar *string, gsize size);
 
-gboolean bt_hash_to_string (gchar hash[20], gchar string[41]);
+gchar   *bt_hash_to_string (const gchar *hash);
+
+gchar   *bt_client_name_from_id (const gchar *id);
 
 GSource *bt_io_source_create (BtManager *manager, GIOChannel *channel, GIOCondition condition, GSourceFunc callback, gpointer data);
 
 GSource *bt_timeout_source_create (BtManager *manager, guint timeout, GSourceFunc callback, gpointer data);
 
 GSource *bt_idle_source_create (BtManager *manager, GSourceFunc callback, gpointer data);
-
-gchar   *bt_client_name_from_id (gchar *id);
 
 #endif

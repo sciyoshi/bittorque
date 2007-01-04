@@ -23,7 +23,6 @@
 
 #include <glib.h>
 #include <glib-object.h>
-
 #include <gnet.h>
 
 G_BEGIN_DECLS
@@ -41,16 +40,22 @@ typedef struct _BtManagerClass BtManagerClass;
 struct _BtManager {
 	GObject       parent;
 
+	/* the main context this manager should run in */
 	GMainContext *context;
 
+	/* the GTcpSocket that we are listening for connections on */
 	GTcpSocket   *accept_socket;
 
+	/* a hash table holding a infohash->torrent mapping */
 	GHashTable   *torrents;
 
-	gchar         peer_id[21];
+	/* the peer id that torrents should use */
+	gchar        *peer_id;
 
+	/* the port we are listening on */
 	gushort       port;
 
+	/* the private directory we should use to store private info in */
 	gchar        *private_dir;
 
 	GKeyFile     *preferences;
@@ -63,19 +68,24 @@ struct _BtManagerClass {
 GType      bt_manager_get_type ();
 
 BtManager *bt_manager_new ();
+
 BtManager *bt_manager_new_with_main (GMainContext *context);
 
 guint      bt_manager_add_source (BtManager *manager, GSource *source);
 
 gboolean   bt_manager_accept_start (BtManager *self, GError **error);
+
 void       bt_manager_accept_stop (BtManager *self);
 
 gboolean   bt_manager_set_port (BtManager *self, gushort port, GError **error);
+
 gushort    bt_manager_get_port (BtManager *self);
 
 void       bt_manager_add_torrent (BtManager *self, BtTorrent *torrent);
-BtTorrent *bt_manager_get_torrent (BtManager *self, gchar *infohash);
-BtTorrent *bt_manager_get_torrent_string (BtManager *self, gchar *infohash);
+
+BtTorrent *bt_manager_get_torrent (BtManager *self, const gchar *infohash);
+
+BtTorrent *bt_manager_get_torrent_string (BtManager *self, const gchar *infohash);
 
 G_END_DECLS
 

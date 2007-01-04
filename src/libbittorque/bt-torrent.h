@@ -58,24 +58,54 @@ typedef struct {
 struct _BtTorrent {
 	GObject    parent;
 
+	/* manager for this torrent */
 	BtManager *manager;
 
+	/* filename of the .torrent file */
 	gchar     *filename;
+	
+	/* location to save data */
 	gchar     *location;
 
+	/* torrent name */
 	gchar     *name;
+	
+	/* tracker announce url */
 	gchar     *announce;
+	
+	/* list for multi-tracker torrents */
 	GSList    *announce_list;
-	gchar      infohash[20];
-	gchar      infohash_string[41];
+	
+	/* infohash as a 20 byte string */
+	gchar     *infohash;
+	
+	/* infohash as a 40 byte hex string (human readable */
+	gchar     *infohash_string;
+	
 	gchar     *log_domain;
+	
+	/* total size in bytes of this torrent */
 	gint64     size;
-	gchar     *peer_id;
+	
+	/* length of each piece */
 	gsize      piece_length;
+	
+	/* total number of pieces, including last (possibly partially full) one */
 	guint      num_pieces;
+	
+	/* percentage complete */
 	gdouble    completion;
+	
+	guint      num_blocks;
+	
+	guint      block_size;
+	
+	gchar     *bitfield;
+	
+	/* array of BtTorrentFile structures */
 	GArray    *files;
 
+	/* socket for tracker connection */
 	GConnHttp *tracker_socket;
 	guint      tracker_current_tier;
 	guint      tracker_current_tracker;
@@ -83,8 +113,10 @@ struct _BtTorrent {
 	gint       tracker_min_interval;
 	gchar     *tracker_id;
 
+	/* cached pieces */
 	GString   *cache;
 
+	/* list of peers for this torrent */
 	GSList    *peers;
 
 	GSource   *check_peers_source;

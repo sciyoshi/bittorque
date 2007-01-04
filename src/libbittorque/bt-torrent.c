@@ -107,12 +107,14 @@ bt_torrent_parse_file (BtTorrent *self, const gchar *filename, GError **error)
 	BtBencode *metainfo, *info, *announce, *announce_list, *name, *length, *files, *pieces, *piece_length;
 	gchar *contents;
 
+	/* read the contents of the torrent file */
 	if (!g_file_get_contents (filename, &contents, NULL, error))
 		return FALSE;
 
 	/* decode the bencoded file into our own structure */
 	metainfo = bt_bencode_decode (contents, error);
 
+	/* we won't need the contents anymore */
 	g_free (contents);
 
 	if (!metainfo)
@@ -132,8 +134,8 @@ bt_torrent_parse_file (BtTorrent *self, const gchar *filename, GError **error)
 	g_debug ("torrent name: %s", self->name);
 
 	/* check the info hash of this torrent */
-	bt_infohash (info, self->infohash);
-	bt_hash_to_string (self->infohash, self->infohash_string);
+	self->infohash = bt_get_info_hash (info);
+	self->infohash_string = bt_hash_to_string (self->infohash);
 	g_debug ("torrent info hash: %s", self->infohash_string);
 	
 	self->log_domain = g_strdup_printf ("BitTorque::Torrent::%s", self->infohash_string);
@@ -260,6 +262,14 @@ bt_torrent_parse_file (BtTorrent *self, const gchar *filename, GError **error)
 		}
 	}
 
+	self->num_pieces = (self->size + self->piece_length - 1) / self->piece_length;
+
+	self->bitfield = g_malloc0 ((self->num_pieces + 7) /  8);
+
+	self->block_size = MIN (self->piece_length, 16384);
+
+	self->num_blocks = (self->size + self->block_size - 1) / self->block_size;
+
 	bt_bencode_destroy (metainfo);
 	return TRUE;
 
@@ -318,8 +328,6 @@ bt_torrent_set_location (BtTorrent *self, const gchar *location)
 {
 	g_object_set (G_OBJECT (self), "location", location, NULL);
 }
-
-/* gobject type functions */
 
 static void
 bt_torrent_set_property (GObject *object, guint property, const GValue *value, GParamSpec *pspec)
@@ -410,11 +418,14 @@ bt_torrent_init (BtTorrent *torrent)
 	torrent->size = 0;
 	torrent->piece_length = 0;
 	torrent->filename = NULL;
+	torrent->infohash = NULL;
+	torrent->infohash_string = NULL;
 	torrent->log_domain = g_strdup (G_LOG_DOMAIN);
 	torrent->files = g_array_new (FALSE, TRUE, sizeof (BtTorrentFile));
 	torrent->check_peers_source = NULL;
 	torrent->announce_source = NULL;
 	torrent->announce_start = NULL;
+	torrent->bitfield = NULL;
 	torrent->tracker_current_tier = 0;
 	torrent->tracker_current_tracker = 0;
 	torrent->tracker_socket = NULL;
@@ -451,6 +462,7 @@ bt_torrent_finalize (GObject *torrent)
 	g_free (self->announce);
 	g_free (self->name);
 	g_free (self->log_domain);
+	g_free (self->bitfield);
 	g_string_free (self->cache, TRUE);
 	g_array_free (self->files, TRUE);
 
