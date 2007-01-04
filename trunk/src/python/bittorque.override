@@ -8,6 +8,8 @@ headers
 modulename bittorque
 %%
 import gobject.GObject as PyGObject_Type
+import gobject.MainContext as PyMainContext_Type
+import gobject.Source as PySource_Type
 %%
 ignore-glob
   *_get_type

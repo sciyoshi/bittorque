@@ -280,7 +280,7 @@ bt_peer_receive (BtPeer *self, gchar *buf, gsize len, gpointer data G_GNUC_UNUSE
 		g_print ("message is %d\n", message);
 		
 		guint i, count;
-		guchar *bitmask;
+		guchar *bitfield;
 		
 		switch (message) {
 		case 0:
@@ -304,10 +304,11 @@ bt_peer_receive (BtPeer *self, gchar *buf, gsize len, gpointer data G_GNUC_UNUSE
 			
 		case 5:
 			/* bitfield */
-			bitmask = self->bitmask = g_memdup (buf + 5, msglen - 1);
+			bitfield = self->bitfield = g_memdup (buf + 5, msglen - 1);
+			
 			for (i = 0; i < msglen - 2; i++)
-				count += bit_count[bitmask[i]];
-			g_print ("last one has %d, total %d\n", bitmask[msglen - 2], self->torrent->size / self->torrent->piece_length);
+				count += bit_count[bitfield[i]];
+			
 			break;
 
 		case 6:

@@ -75,7 +75,7 @@ struct _BtPeer {
 	GString     *buffer;
 	gsize        pos;
 
-	guchar      *bitmask;
+	guchar      *bitfield;
 	gdouble      completion;
 
 	gboolean     choking;

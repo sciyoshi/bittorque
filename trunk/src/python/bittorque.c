@@ -15,6 +15,10 @@
 /* ---------- types from other modules ---------- */
 static PyTypeObject *_PyGObject_Type;
 #define PyGObject_Type (*_PyGObject_Type)
+static PyTypeObject *_PyMainContext_Type;
+#define PyMainContext_Type (*_PyMainContext_Type)
+static PyTypeObject *_PySource_Type;
+#define PySource_Type (*_PySource_Type)
 
 
 /* ---------- forward type declarations ---------- */
@@ -22,7 +26,7 @@ PyTypeObject G_GNUC_INTERNAL PyBtManager_Type;
 PyTypeObject G_GNUC_INTERNAL PyBtPeer_Type;
 PyTypeObject G_GNUC_INTERNAL PyBtTorrent_Type;
 
-#line 26 "bittorque.c"
+#line 30 "bittorque.c"
 
 
 
@@ -31,14 +35,24 @@ PyTypeObject G_GNUC_INTERNAL PyBtTorrent_Type;
 static int
 _wrap_bt_manager_new(PyGObject *self, PyObject *args, PyObject *kwargs)
 {
-    static char* kwlist[] = { NULL };
+    GType obj_type = pyg_type_from_object((PyObject *) self);
+    GParameter params[1];
+    PyObject *parsed_args[1] = {NULL, };
+    char *arg_names[] = {"GMainContext*", NULL };
+    char *prop_names[] = {"context", NULL };
+    guint nparams, i;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs,
-                                     ":bittorque.Manager.__init__",
-                                     kwlist))
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|O:bittorque.Manager.__init__" , arg_names , &parsed_args[0]))
         return -1;
 
-    pygobject_constructv(self, 0, NULL);
+    memset(params, 0, sizeof(GParameter)*1);
+    if (!pyg_parse_constructor_args(obj_type, arg_names,
+                                    prop_names, params, 
+                                    &nparams, parsed_args))
+        return -1;
+    pygobject_constructv(self, nparams, params);
+    for (i = 0; i < nparams; ++i)
+        g_value_unset(&params[i].value);
     if (!self->obj) {
         PyErr_SetString(
             PyExc_RuntimeError, 
@@ -216,14 +230,34 @@ PyTypeObject G_GNUC_INTERNAL PyBtManager_Type = {
 
 /* ----------- BtPeer ----------- */
 
-static int
-pygobject_no_constructor(PyObject *self, PyObject *args, PyObject *kwargs)
+ static int
+_wrap_bt_peer_new(PyGObject *self, PyObject *args, PyObject *kwargs)
 {
-    gchar buf[512];
+    GType obj_type = pyg_type_from_object((PyObject *) self);
+    GParameter params[4];
+    PyObject *parsed_args[4] = {NULL, };
+    char *arg_names[] = {"BtManager*", "BtTorrent*", "GTcpSocket*", "GInetAddr*", NULL };
+    char *prop_names[] = {"manager", "torrent", "socket", "address", NULL };
+    guint nparams, i;
 
-    g_snprintf(buf, sizeof(buf), "%s is an abstract widget", self->ob_type->tp_name);
-    PyErr_SetString(PyExc_NotImplementedError, buf);
-    return -1;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOO:bittorque.Peer.__init__" , arg_names , &parsed_args[0] , &parsed_args[1] , &parsed_args[2] , &parsed_args[3]))
+        return -1;
+
+    memset(params, 0, sizeof(GParameter)*4);
+    if (!pyg_parse_constructor_args(obj_type, arg_names,
+                                    prop_names, params, 
+                                    &nparams, parsed_args))
+        return -1;
+    pygobject_constructv(self, nparams, params);
+    for (i = 0; i < nparams; ++i)
+        g_value_unset(&params[i].value);
+    if (!self->obj) {
+        PyErr_SetString(
+            PyExc_RuntimeError, 
+            "could not create bittorque.Peer object");
+        return -1;
+    }
+    return 0;
 }
 
 static PyObject *
@@ -400,7 +434,7 @@ PyTypeObject G_GNUC_INTERNAL PyBtPeer_Type = {
     (descrgetfunc)0,    /* tp_descr_get */
     (descrsetfunc)0,    /* tp_descr_set */
     offsetof(PyGObject, inst_dict),                 /* tp_dictoffset */
-    (initproc)pygobject_no_constructor,             /* tp_init */
+    (initproc)_wrap_bt_peer_new,             /* tp_init */
     (allocfunc)0,           /* tp_alloc */
     (newfunc)0,               /* tp_new */
     (freefunc)0,             /* tp_free */
@@ -411,26 +445,49 @@ PyTypeObject G_GNUC_INTERNAL PyBtPeer_Type = {
 
 /* ----------- BtTorrent ----------- */
 
-static int
+ static int
 _wrap_bt_torrent_new(PyGObject *self, PyObject *args, PyObject *kwargs)
 {
-    static char *kwlist[] = { "manager", "filename", NULL };
-    PyGObject *manager;
-    char *filename;
-    GError *error = NULL;
+    GType obj_type = pyg_type_from_object((PyObject *) self);
+    GParameter params[2];
+    PyObject *parsed_args[2] = {NULL, };
+    char *arg_names[] = {"BtManager", "const-gchar*", NULL };
+    char *prop_names[] = {"manager", "filename", NULL };
+    guint nparams, i;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs,"O!s:BtTorrent.__init__", kwlist, &PyBtManager_Type, &manager, &filename))
-        return -1;
-    self->obj = (GObject *)bt_torrent_new(BT_MANAGER(manager->obj), filename, &error);
-    if (pyg_error_check(&error))
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO:bittorque.Torrent.__init__" , arg_names , &parsed_args[0] , &parsed_args[1]))
         return -1;
 
+    memset(params, 0, sizeof(GParameter)*2);
+    if (!pyg_parse_constructor_args(obj_type, arg_names,
+                                    prop_names, params, 
+                                    &nparams, parsed_args))
+        return -1;
+    pygobject_constructv(self, nparams, params);
+    for (i = 0; i < nparams; ++i)
+        g_value_unset(&params[i].value);
     if (!self->obj) {
-        PyErr_SetString(PyExc_RuntimeError, "could not create BtTorrent object");
+        PyErr_SetString(
+            PyExc_RuntimeError, 
+            "could not create bittorque.Torrent object");
         return -1;
     }
-    pygobject_register_wrapper((PyObject *)self);
     return 0;
+}
+
+static PyObject *
+_wrap_bt_torrent_set_location(PyGObject *self, PyObject *args, PyObject *kwargs)
+{
+    static char *kwlist[] = { "location", NULL };
+    char *location;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs,"s:BtTorrent.set_location", kwlist, &location))
+        return NULL;
+    
+    bt_torrent_set_location(BT_TORRENT(self->obj), location);
+    
+    Py_INCREF(Py_None);
+    return Py_None;
 }
 
 static PyObject *
@@ -486,6 +543,8 @@ _wrap_bt_torrent_add_peer(PyGObject *self, PyObject *args, PyObject *kwargs)
 }
 
 static const PyMethodDef _PyBtTorrent_methods[] = {
+    { "set_location", (PyCFunction)_wrap_bt_torrent_set_location, METH_VARARGS|METH_KEYWORDS,
+      NULL },
     { "start_downloading", (PyCFunction)_wrap_bt_torrent_start_downloading, METH_NOARGS,
       NULL },
     { "announce", (PyCFunction)_wrap_bt_torrent_announce, METH_NOARGS,
@@ -547,6 +606,23 @@ PyTypeObject G_GNUC_INTERNAL PyBtTorrent_Type = {
 /* ----------- functions ----------- */
 
 static PyObject *
+_wrap_bt_create_peer_id(PyObject *self)
+{
+    gchar *ret;
+
+    
+    ret = bt_create_peer_id();
+    
+    if (ret) {
+        PyObject *py_ret = PyString_FromString(ret);
+        g_free(ret);
+        return py_ret;
+    }
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyObject *
 _wrap_bt_url_encode(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     static char *kwlist[] = { "string", "size", NULL };
@@ -568,8 +644,56 @@ _wrap_bt_url_encode(PyObject *self, PyObject *args, PyObject *kwargs)
     return Py_None;
 }
 
+static PyObject *
+_wrap_bt_hash_to_string(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+    static char *kwlist[] = { "hash", NULL };
+    char *hash;
+    gchar *ret;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs,"s:bt_hash_to_string", kwlist, &hash))
+        return NULL;
+    
+    ret = bt_hash_to_string(hash);
+    
+    if (ret) {
+        PyObject *py_ret = PyString_FromString(ret);
+        g_free(ret);
+        return py_ret;
+    }
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyObject *
+_wrap_bt_client_name_from_id(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+    static char *kwlist[] = { "id", NULL };
+    char *id;
+    gchar *ret;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs,"s:bt_client_name_from_id", kwlist, &id))
+        return NULL;
+    
+    ret = bt_client_name_from_id(id);
+    
+    if (ret) {
+        PyObject *py_ret = PyString_FromString(ret);
+        g_free(ret);
+        return py_ret;
+    }
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 const PyMethodDef bittorque_functions[] = {
+    { "bt_create_peer_id", (PyCFunction)_wrap_bt_create_peer_id, METH_NOARGS,
+      NULL },
     { "bt_url_encode", (PyCFunction)_wrap_bt_url_encode, METH_VARARGS|METH_KEYWORDS,
+      NULL },
+    { "bt_hash_to_string", (PyCFunction)_wrap_bt_hash_to_string, METH_VARARGS|METH_KEYWORDS,
+      NULL },
+    { "bt_client_name_from_id", (PyCFunction)_wrap_bt_client_name_from_id, METH_VARARGS|METH_KEYWORDS,
       NULL },
     { NULL, NULL, 0, NULL }
 };
@@ -601,6 +725,18 @@ bittorque_register_classes(PyObject *d)
                 "cannot import name GObject from gobject");
             return ;
         }
+        _PyMainContext_Type = (PyTypeObject *)PyObject_GetAttrString(module, "MainContext");
+        if (_PyMainContext_Type == NULL) {
+            PyErr_SetString(PyExc_ImportError,
+                "cannot import name MainContext from gobject");
+            return ;
+        }
+        _PySource_Type = (PyTypeObject *)PyObject_GetAttrString(module, "Source");
+        if (_PySource_Type == NULL) {
+            PyErr_SetString(PyExc_ImportError,
+                "cannot import name Source from gobject");
+            return ;
+        }
     } else {
         PyErr_SetString(PyExc_ImportError,
             "could not import gobject");
@@ -608,9 +744,11 @@ bittorque_register_classes(PyObject *d)
     }
 
 
-#line 612 "bittorque.c"
+#line 748 "bittorque.c"
     pygobject_register_class(d, "BtManager", BT_TYPE_MANAGER, &PyBtManager_Type, Py_BuildValue("(O)", &PyGObject_Type));
     pyg_set_object_has_new_constructor(BT_TYPE_MANAGER);
     pygobject_register_class(d, "BtPeer", BT_TYPE_PEER, &PyBtPeer_Type, Py_BuildValue("(O)", &PyGObject_Type));
+    pyg_set_object_has_new_constructor(BT_TYPE_PEER);
     pygobject_register_class(d, "BtTorrent", BT_TYPE_TORRENT, &PyBtTorrent_Type, Py_BuildValue("(O)", &PyGObject_Type));
+    pyg_set_object_has_new_constructor(BT_TYPE_TORRENT);
 }

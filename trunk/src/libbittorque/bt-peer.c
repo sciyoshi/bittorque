@@ -600,8 +600,6 @@ bt_peer_class_init (BtPeerClass *klass)
 		               G_TYPE_NONE, 2, params);
 }
 
-/* FIXME: put this into a constructor */
-
 BtPeer *
 bt_peer_new (BtManager *manager, BtTorrent *torrent, GTcpSocket *socket, GInetAddr *address)
 {
