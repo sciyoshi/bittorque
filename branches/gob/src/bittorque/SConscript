@@ -1,0 +1,8 @@
+Import('*')
+
+envgtk.Program('bittorque',
+	['bittorque.c',
+	 'bittorque-plugin-manager.c',
+	 'bittorque-plugin-info.c',
+	 'bittorque-plugin.c',
+	 'bittorque-open-dialog.c'])

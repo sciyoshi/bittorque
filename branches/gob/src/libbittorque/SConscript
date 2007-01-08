@@ -1,0 +1,18 @@
+Import('*')
+
+envlib.Command('bt-marshallers.h', 'bt-marshallers.list', 'glib-genmarshal --header --prefix=bt_cclosure_marshal $SOURCE > $TARGET')
+envlib.Command('bt-marshallers.c', 'bt-marshallers.list', 'glib-genmarshal --body --prefix=bt_cclosure_marshal $SOURCE > $TARGET')
+
+envlib.StaticLibrary('bittorque',
+	['bt-manager.c',
+	 'bt-torrent.c',
+	 'bt-torrent-announce.c',
+	 'bt-peer.c',
+	 'bt-peer-encryption.c',
+	 'bt-peer-messages.c',
+	 'bt-utils.c',
+	 'bt-peer.h',
+	 'bt-bencode.c',
+	 'bt-marshallers.c',
+	 'sha1.c',
+	 'rc4.c'])
