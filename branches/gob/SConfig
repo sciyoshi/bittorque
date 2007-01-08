@@ -1,2 +1,3 @@
 embed_data = True
-static_gnet = False
+static_gnet = True
+enable_debug = True

@@ -20,6 +20,7 @@
 
 %h{
 
+/* typedefs for circular headers */
 #ifndef __TYPEDEF_BT_MANAGER__
 #define __TYPEDEF_BT_MANAGER__
 typedef struct _BtManager BtManager;
@@ -65,9 +66,18 @@ typedef struct {
 
 GType bt_torrent_file_get_type ();
 
+typedef struct {
+	gulong   piece;
+	gulong   offset;
+	gsize    length;
+	gchar   *block;
+} BtBlock;
+
 %}
 
 %{
+
+static BtBlock bt_block_quit_signal = {0, 0, 0, NULL};
 
 /* gboxed type holding the information for a single file in a torrent */
 
@@ -174,6 +184,12 @@ class Bt:Torrent from G:Object {
 
 	/* list of peers for this torrent */
 	protected GSList    *peers = NULL;
+
+	/* asynchronous queue for completed blocks */
+	protected GAsyncQueue *block_queue = { g_async_queue_new () }
+		unrefwith g_async_queue_unref;
+
+	protected GThread   *file_thread = NULL;
 
 	protected GSource   *check_peers_source = NULL;
 	protected GSource   *announce_source = NULL;
@@ -662,17 +678,39 @@ class Bt:Torrent from G:Object {
 	private gpointer
 	file_thread (self)
 	{
+		BtBlock *data;
 
+
+		g_async_queue_ref (self->block_queue);
+
+		while ((data = (BtBlock *) g_async_queue_pop (self->block_queue))) {
+			if (!data || (data == &bt_block_quit_signal))
+				break;
+
+			g_debug ("handling block %ld offset %ld", data->piece, data->offset);
+
+			g_free (data->block);
+			g_slice_free (BtBlock, data);
+		}
+
+		g_async_queue_unref (self->block_queue);
+
+		return NULL;
 	}
 
 	public gboolean
-	start_downloading (self)
+	start_downloading (self, GError **error)
 	{
 		g_debug ("starting torrent download");
 
 		self->check_peers_source = bt_timeout_source_create (self->manager, 5000, (GSourceFunc) bt_torrent_check_peers, self);
 
 		self->announce_source = bt_idle_source_create (self->manager, (GSourceFunc) bt_torrent_announce, self);
+
+		self->file_thread = g_thread_create ((GThreadFunc) self_file_thread, self, TRUE, error);
+
+		if (!self->file_thread)
+			return FALSE;
 
 		return TRUE;
 	}
@@ -686,6 +724,12 @@ class Bt:Torrent from G:Object {
 	public gboolean
 	stop_downloading (self)
 	{
+		if (self->file_thread) {
+			g_async_queue_push (self->block_queue, &bt_block_quit_signal);
+			g_thread_join (self->file_thread);
+			self->file_thread = NULL;
+		}
+
 		return TRUE;
 	}
 

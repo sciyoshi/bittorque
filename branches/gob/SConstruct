@@ -88,7 +88,7 @@ if not env['static_gnet']:
 	env.ParseConfig('pkg-config --libs gnet-2.0')
 env.Append(CPPDEFINES=['-DBT_DATA_DIR=\\"' + env['data_dir'] + '\\"'])
 env.Append(CPPDEFINES=['-DGNET_EXPERIMENTAL', '-DGETTEXT_PACKAGE=\\"bittorque\\"', '-DBTLOCALEDIR=\\"/usr/local/share/locale\\"'])
-env.Append(CCFLAGS=['-Wall', '-Wextra'])
+env.Append(CCFLAGS=['-Wall', '-Wextra', '-O0'])
 if env['enable_debug']:
 	env.Append(CCFLAGS=['-g'])
 
