@@ -1,6 +1,4 @@
 Import('*')
 
-env.SConscript(dirs=['bittorque', 'libbittorque'])
+env.SConscript(dirs=['lib', 'gtk'])
 
-if env['enable_python'] == 'yes':
-	env.SConscript('python/SConscript')

@@ -1,3 +1,0 @@
-Import('*')
-
-envpy.SharedLibrary('bittorque', ['bittorque.c', 'pybittorque.c'], LIBPREFIX='')
