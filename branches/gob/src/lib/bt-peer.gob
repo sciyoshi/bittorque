@@ -1,0 +1,694 @@
+/**
+ * bt-peer.gob
+ *
+ * Copyright 2007 Samuel Cormier-Iijima <sciyoshi@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
+
+%h{
+
+#ifndef __TYPEDEF_BT_MANAGER__
+#define __TYPEDEF_BT_MANAGER__
+typedef struct _BtManager BtManager;
+#endif
+
+#ifndef __TYPEDEF_BT_TORRENT__
+#define __TYPEDEF_BT_TORRENT__
+typedef struct _BtTorrent BtTorrent;
+#endif
+
+#include <string.h>
+
+#include "bt-manager.h"
+#include "bt-torrent.h"
+
+%}
+
+%{
+
+static guchar bit_count[] = {
+	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
+	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+	4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8};
+
+%}
+
+enum BT_PEER_STATUS {
+	CONNECTING,     /* waiting for a connection */
+	CONNECTED_SEND, /* we are connected, and since we initiated, send handshake */
+	CONNECTED_WAIT, /* peer connected to us, so wait for his handshake */
+	SEND_HANDSHAKE, /* peer has sent his handshake, so send one back */
+	WAIT_HANDSHAKE, /* we have sent our handshake, so wait for his */
+	DISCONNECTING,  /* trying to disconnect */
+	DISCONNECTED,   /* disconnected */
+	IDLE_HAVE,      /* handshake is complete, and we should send a HAVE */
+	IDLE            /* connected and idle */
+} Bt:Peer:Status;
+
+class Bt:Peer from G:Object {
+
+	protected BtManager   *manager = NULL
+		unrefwith g_object_unref;
+
+	protected BtTorrent   *torrent = NULL
+		unref {
+			if (VAR != NULL)
+				g_object_unref (VAR);
+		};
+
+	protected GTcpSocket  *tcp_socket = NULL
+		unref {
+			if (VAR != NULL)
+				gnet_tcp_socket_unref (VAR);
+		};
+
+	protected GConn       *socket = NULL;
+	protected GInetAddr   *address = NULL;
+	protected gchar       *address_string = NULL;
+
+	protected gchar       *peer_id = NULL;
+
+	protected GSource     *keepalive_source = NULL;
+
+	protected gboolean    alive;
+
+	protected BtPeerStatus status;
+
+	protected GString     *buffer = { g_string_sized_new (1024) }
+		destroy { g_string_free (VAR, TRUE); };
+
+	protected gsize        pos;
+
+	protected guchar      *bitfield = NULL
+		destroywith g_free;
+
+	protected gdouble      completion;
+
+	protected gboolean     choking = TRUE;
+	protected gboolean     interesting = FALSE;
+	protected gboolean     choked = TRUE;
+	protected gboolean     interested = FALSE;
+
+	property BOOLEAN choking
+		(nick = "choking peer",
+		 blurb = "TRUE if we are choking the peer",
+		 default_value = TRUE)
+		set { self_set_choking (self, g_value_get_boolean (VAL)); }
+		get { g_value_set_boolean (VAL, self_get_choking (self)); };
+
+	property BOOLEAN interesting
+		(nick = "interested in peer",
+		 blurb = "TRUE if we are interested in the peer, i.e. he is \"interesting\"",
+		 default_value = FALSE)
+		set { self_set_interesting (self, g_value_get_boolean (VAL)); }
+		get { g_value_set_boolean (VAL, self_get_interesting (self)); };
+
+	property BOOLEAN choked
+		(nick = "choked by peer",
+		 blurb = "TRUE if we are being choked by the peer",
+		 default_value = TRUE)
+		get { g_value_set_boolean (VAL, self_get_choked (self)); };
+
+	property BOOLEAN interested
+		(nick = "peer is interested in us",
+		 blurb = "TRUE if the peer is interested in downloading from us",
+		 default_value = FALSE)
+		get { g_value_set_boolean (VAL, self_get_interested (self)); };
+
+	property OBJECT manager
+		(nick = "torrent manager",
+		 blurb = "The manager for this torrent",
+		 object_type = Bt:Manager,
+		 flags = CONSTRUCT_ONLY,
+		 link);
+
+	property OBJECT torrent
+		(nick = "torrent this peer is for",
+		 blurb = "The torrent that this peer is for",
+		 object_type = Bt:Torrent,
+		 flags = CONSTRUCT_ONLY,
+		 link);
+
+	property BOXED tcp_socket
+		(nick = "the TCP socket that this peer connected to",
+		 blurb = "A GTCPSocket that is connected to this peer",
+		 boxed_type = Bt:Tcp:Socket,
+		 flags = CONSTRUCT_ONLY,
+		 link);
+
+	property BOXED address
+		(nick = "the GInetAddr of the remote peer",
+		 blurb = "The address and port of the remote peer",
+		 boxed_type = Bt:Inet:Addr,
+		 flags = CONSTRUCT_ONLY,
+		 link);
+
+	/**
+	 * set_choking:
+	 *
+	 * Sets if we are choking the other peer.
+	 */
+	public void
+	set_choking (self, gboolean choking)
+	{
+		if (self->choking == choking)
+			return;
+
+		if (self->choking)
+			bt_peer_send_unchoke (self);
+		else
+			bt_peer_send_choke (self);
+
+		self->choking = choking;
+	}
+
+	/**
+	 * set_interesting:
+	 *
+	 * Sets if we are interested in the other peer, i.e. he is "interesting".
+	 */
+	public void
+	set_interesting (self, gboolean interesting)
+	{
+		if (self->interesting == interesting)
+			return;
+
+		if (self->interesting)
+			bt_peer_send_uninterested (self);
+		else
+			bt_peer_send_interested (self);
+
+		self->interesting = interesting;
+	}
+
+	/**
+	 * get_choking:
+	 *
+	 * Returns if we are choking the other peer or not.
+	 */
+	public gboolean
+	get_choking (self)
+	{
+		return self->choking;
+	}
+
+	/**
+	 * get_interesting:
+	 *
+	 * Returns if we are interested in the other peer.
+	 */
+	public gboolean
+	get_interesting (self)
+	{
+		return self->interesting;
+	}
+
+	/**
+	 * get_choked:
+	 *
+	 * Returns whether or not the other peer is choking us.
+	 */
+	public gboolean
+	get_choked (self)
+	{
+		return self->choked;
+	}
+
+	/**
+	 * get_interested:
+	 *
+	 * Returns if the peer is interested in us or not.
+	 */
+	public gboolean
+	get_interested (self)
+	{
+		return self->interested;
+	}
+
+	/**
+	 * check:
+	 *
+	 * Check the peers to see who we should optimistically unchoke or choke.
+	 */
+	public gboolean
+	check (self)
+	{
+		/* TODO: add peer checking */
+
+		return FALSE;
+	}
+
+	private void
+	send_keepalive (self)
+	{
+		static gchar buf[5] = {0, 0, 0, 0};
+
+		gnet_conn_write (self->socket, buf, 4);
+	}
+
+	private void
+	send_choke (self)
+	{
+		static gchar buf[5] = {0, 0, 0, 1, 0};
+
+		gnet_conn_write (self->socket, buf, 5);
+	}
+
+	private void
+	send_unchoke (self)
+	{
+		static gchar buf[5] = {0, 0, 0, 1, 1};
+
+		gnet_conn_write (self->socket, buf, 5);
+	}
+
+	private void
+	send_interested (self)
+	{
+		static gchar buf[5] = {0, 0, 0, 1, 2};
+
+		gnet_conn_write (self->socket, buf, 5);
+	}
+
+	private void
+	send_uninterested (self)
+	{
+		static gchar buf[5] = {0, 0, 0, 1, 3};
+
+		gnet_conn_write (self->socket, buf, 5);
+	}
+
+	private void
+	send_handshake (self)
+	{
+		gchar buf[68];
+
+		g_return_if_fail (BT_IS_TORRENT (self->torrent));
+
+		buf[0] = (gchar) 19;
+
+		memcpy (buf + 1, "BitTorrent protocol", 19);
+
+		memset (buf + 20, 0, 8);
+
+		memcpy (buf + 28, self->torrent->infohash, 20);
+
+		memcpy (buf + 48, self->manager->peer_id, 20);
+
+		gnet_conn_write (self->socket, buf, 68);
+
+		g_debug ("sent handshake");
+
+		if (self->status == BT_PEER_STATUS_CONNECTED_SEND) {
+			self->status = BT_PEER_STATUS_WAIT_HANDSHAKE;
+		} else {
+			self->status = BT_PEER_STATUS_IDLE_HAVE;
+		}
+
+		return;
+	}
+
+	private void
+	send_have (self)
+	{
+
+	}
+
+	private gboolean
+	parse_peer_id (self, GError **error)
+	{
+		gchar *buf;
+
+		g_return_val_if_fail (BT_IS_TORRENT (self->torrent), FALSE);
+
+		if (self->pos < 20)
+			return FALSE;
+
+		buf = self->buffer->str;
+
+		self->peer_id = g_strndup (buf, 20);
+
+		g_string_erase (self->buffer, 0, 20);
+		self->pos -= 20;
+
+		if (memcmp (self->peer_id, self->manager->peer_id , 20) == 0) {
+			g_set_error (error, BT_ERROR, BT_ERROR_PEER_HANDSHAKE, "connected to ourselves");
+			return FALSE;
+		}
+
+		g_debug ("valid handshake received");
+
+		return TRUE;
+	}
+
+	private gboolean
+	parse_handshake (self, GError **error)
+	{
+		gchar *buf;
+
+		if (self->pos < 48) {
+			/* we need more */
+			return FALSE;
+		}
+
+		buf = self->buffer->str;
+
+		if (buf[0] != (char) 19)
+			goto bad;
+
+		if (strncmp (buf + 1, "BitTorrent protocol", 19) != 0)
+			goto bad;
+
+		self->torrent = bt_manager_get_torrent (self->manager, buf + 28);
+
+		if (!self->torrent) {
+			g_set_error (error, BT_ERROR, BT_ERROR_PEER_HANDSHAKE, "connection received for torrent we are not serving");
+			return FALSE;
+		}
+
+		g_object_ref (self->torrent);
+
+		g_string_erase (self->buffer, 0, 48);
+		self->pos -= 48;
+
+		if (self->pos > 0)
+			if (!bt_peer_parse_peer_id (self, error))
+				return FALSE;
+
+		if (self->status == BT_PEER_STATUS_CONNECTED_WAIT) {
+			self->status = BT_PEER_STATUS_SEND_HANDSHAKE;
+			bt_peer_send_handshake (self);
+		} else {
+			self->status = BT_PEER_STATUS_IDLE_HAVE;
+		}
+
+		return TRUE;
+
+	bad:
+		g_set_error (error, BT_ERROR, BT_ERROR_PEER_HANDSHAKE, "invalid handshake sent by peer");
+		return FALSE;
+	}
+
+	signal private last NONE (POINTER, UINT) void
+	data_read (self, gchar *buf, gsize len)
+	{
+		GError *error = NULL;
+
+		if (len == 0) {
+			g_debug ("connection closed");
+			return;
+		}
+
+		g_string_append_len (self->buffer, buf, len);
+		self->pos += len;
+
+		switch (self->status) {
+		case BT_PEER_STATUS_CONNECTED_WAIT:
+		case BT_PEER_STATUS_WAIT_HANDSHAKE:
+			if (!bt_peer_parse_handshake (self, &error)) {
+				/* maybe we just need more data, so make sure an error occured */
+				if (error != NULL) {
+					if (g_error_matches (error, BT_ERROR, BT_ERROR_PEER_HANDSHAKE))
+						g_debug ("closing peer connection: %s", error->message);
+					else
+						g_warning (error->message);
+					g_clear_error (&error);
+					bt_idle_source_create (self->manager, (GSourceFunc) bt_peer_disconnect, self);
+					return;
+				}
+			}
+
+			break;
+
+		case BT_PEER_STATUS_IDLE_HAVE:
+			if (self->peer_id == NULL) {
+				if (!bt_peer_parse_peer_id (self, &error)) {
+					/* maybe we just need more data, so make sure an error occured */
+					if (error != NULL) {
+						g_warning (error->message);
+						g_clear_error (&error);
+						bt_idle_source_create (self->manager, (GSourceFunc) bt_peer_disconnect, self);
+						return;
+					}
+				}
+			}
+
+			if (!self->peer_id)
+				break;
+
+			bt_peer_send_have (self);
+
+			self->status = BT_PEER_STATUS_IDLE;
+
+			/* fall through */
+
+		case BT_PEER_STATUS_IDLE:
+			/* use these as local variables, we won't need them anymore */
+			buf = self->buffer->str;
+			len = self->buffer->len;
+
+			/* we need at least 4 bytes */
+			if (len < 4)
+				break;
+
+			guint32 msglen = g_ntohl (*((guint32 *) buf));
+
+			g_print ("message is length %d\n", msglen);
+
+			/* keepalive */
+			if (msglen == 0) {
+				self->alive = TRUE;
+				g_string_erase (self->buffer, 0, 4);
+				self->pos -= 4;
+				break;
+			}
+
+			if (len < msglen + 4)
+				break;
+
+			gchar message = buf[4];
+
+			g_print ("message is %d\n", message);
+
+			guint i, count;
+			guchar *bitfield;
+
+			switch (message) {
+			case 0:
+				self->choked = TRUE;
+				break;
+
+			case 1:
+				self->choked = FALSE;
+				break;
+
+			case 2:
+				self->interested = TRUE;
+				break;
+
+			case 3:
+				self->interested = FALSE;
+				break;
+
+			case 4:
+				break;
+
+			case 5:
+				/* bitfield */
+				bitfield = self->bitfield = g_memdup (buf + 5, msglen - 1);
+
+				for (i = 0; i < msglen - 2; i++)
+					count += bit_count[bitfield[i]];
+
+				break;
+
+			default:
+				break;
+			}
+
+			break;
+
+		default:
+			break;
+		}
+
+		gnet_conn_read (self->socket);
+
+		return;
+	}
+
+	signal private last NONE (NONE) void
+	handshake_completed (self)
+	{
+		;
+	}
+
+	/**
+	 * connected:
+	 *
+	 * The default handler for when a peer becomes connected. We read the preferences
+	 * to see if we should try to connect with encryption or not.
+	 */
+	signal private last NONE (NONE) void
+	connected (self)
+	{
+		bt_peer_send_handshake (self);
+
+		gnet_conn_read (self->socket);
+	}
+
+	/**
+	 * disconnected:
+	 *
+	 * The default handler for when a peer becomes disconnected.
+	 */
+	signal private last NONE (NONE) void
+	disconnected (self)
+	{
+		if (self->keepalive_source != NULL)
+			g_source_destroy (self->keepalive_source);
+
+		self->keepalive_source = NULL;
+
+		self->alive = FALSE;
+	}
+
+	/**
+	 * connection_callback:
+	 *
+	 * The callback for all peer events; for when data has been read or written, or the peer has
+	 * become connected.
+	 */
+	private void
+	connection_callback (GConn *connection (check null), GConnEvent *event (check null), Bt:Peer *self (check null type))
+	{
+		switch (event->type) {
+		case GNET_CONN_ERROR:
+			g_debug ("peer connection error for %s", self->address_string);
+			break;
+
+		case GNET_CONN_CLOSE:
+			g_debug ("closing connection for %s", self->address_string);
+			/* emit the disconnected signal */
+			self_disconnected (self);
+			break;
+
+		case GNET_CONN_CONNECT:
+			g_debug ("connected to peer %s", self->address_string);
+			self->status = BT_PEER_STATUS_CONNECTED_SEND;
+			self->alive = TRUE;
+			/* emit the connected signal */
+			self_connected (self);
+			break;
+
+		case GNET_CONN_READ:
+			/* emit the data-read signal */
+			self_data_read (self, event->buffer, event->length);
+			break;
+
+		case GNET_CONN_WRITE:
+			break;
+
+		default:
+			break;
+		}
+
+		return;
+	}
+
+	public void
+	connect (self)
+	{
+		self->status = BT_PEER_STATUS_CONNECTING;
+		gnet_conn_connect (self->socket);
+	}
+
+	public gboolean
+	disconnect (self)
+	{
+		self->status = BT_PEER_STATUS_DISCONNECTED;
+		gnet_conn_disconnect (self->socket);
+		self_disconnected (self);
+		return FALSE;
+	}
+
+	private GObject *
+	constructor (GType type, guint num, GObjectConstructParam *properties)
+	{
+		GObject *object;
+		BtPeer *self;
+
+		gchar *canonical;
+
+		object = G_OBJECT_CLASS (parent_class)->constructor (type, num, properties);
+		self = BT_PEER (object);
+
+		if (self->address != NULL) {
+			self->socket = gnet_conn_new_inetaddr (self->address, (GConnFunc) bt_peer_connection_callback, self);
+			self->tcp_socket = self->socket->socket;
+			self->status = BT_PEER_STATUS_DISCONNECTED;
+		} else {
+			self->socket = gnet_conn_new_socket (self->tcp_socket, (GConnFunc) bt_peer_connection_callback, self);
+			self->address = gnet_tcp_socket_get_remote_inetaddr (self->tcp_socket);
+			self->torrent = NULL;
+			self->status = BT_PEER_STATUS_CONNECTED_WAIT;
+			gnet_conn_read (self->socket);
+		}
+
+		canonical = gnet_inetaddr_get_canonical_name (self->address);
+		self->address_string = g_strdup_printf ("%s:%d", canonical, gnet_inetaddr_get_port (self->address));
+		g_free (canonical);
+
+		gnet_conn_set_watch_error (self->socket, TRUE);
+
+		return object;
+	}
+
+	class_init (class)
+	{
+		G_OBJECT_CLASS (class)->constructor = self_constructor;
+	}
+
+	public BtPeer *
+	new (Bt:Manager *manager, Bt:Torrent *torrent, GTcpSocket *socket, GInetAddr *address)
+	{
+		BtPeer *self;
+
+		g_return_val_if_fail (BT_IS_MANAGER (manager), NULL);
+
+		g_return_val_if_fail ((torrent && !socket && address) || (!torrent && socket && !address), NULL);
+
+		if (socket == NULL)
+			self = SELF (g_object_new (TYPE_SELF, "manager", manager, "torrent", torrent, "address", address, NULL));
+		else
+			self = SELF (g_object_new (TYPE_SELF, "manager", manager, "tcp-socket", socket, NULL));
+
+		return self;
+	}
+}

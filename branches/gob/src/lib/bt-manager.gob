@@ -1,0 +1,283 @@
+/**
+ * bt-manager.gob
+ *
+ * Copyright 2007 Samuel Cormier-Iijima <sciyoshi@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
+
+%h{
+
+#include <gnet.h>
+
+#ifndef __TYPEDEF_BT_TORRENT__
+#define __TYPEDEF_BT_TORRENT__
+typedef struct _BtTorrent BtTorrent;
+#endif
+
+#include "bt-torrent.h"
+
+%}
+
+error BT_ERROR {
+	NETWORK,
+	RESOLVING,
+	INVALID_TORRENT,
+	PEER_HANDSHAKE,
+	TRACKER,
+	INVALID
+} Bt:Error;
+
+class Bt:Manager from G:Object {
+
+	protected gushort       port = -1;
+
+	protected gchar        *peer_id = NULL
+		destroywith g_free;
+
+	protected GTcpSocket   *accept_socket = NULL
+		unref {
+			if (VAR != NULL)
+				gnet_tcp_socket_unref (VAR);
+		};
+
+	protected GMainContext *context = NULL
+		unref {
+			if (VAR != NULL)
+				g_main_context_unref (VAR);
+		};
+
+	protected GHashTable   *torrents = { g_hash_table_new_full (g_str_hash, g_str_equal, NULL, (GDestroyNotify) g_object_unref) }
+		unref { g_hash_table_unref (VAR); };
+
+	property UINT port
+		(nick = "incoming connection port",
+		 blurb = "The port this manager should listen to incoming connections from",
+		 minimum = 0,
+		 maximum = G_MAXUSHORT,
+		 default_value = 6881)
+		set {
+			GError *error = NULL;
+			if (!self_set_port (self, g_value_get_int (VAL), &error)) {
+				g_warning ("could not set new port: %s", error->message);
+				g_clear_error (&error);
+			}
+		}
+		get { g_value_set_uint (VAL, self->port); };
+
+	property STRING peer_id
+		(nick = "peer id to use for torrents",
+		 blurb = "The 20-character peer id that is reported to trackers and peers",
+		 default_value = "-BT0000-DEADBEEF1234",
+		 flags = CONSTRUCT_ONLY)
+		set {
+			gchar *peer = g_value_dup_string (VAL);
+			if (strlen (peer) == 20) {
+				g_free (self->peer_id);
+				self->peer_id = peer;
+			} else
+				g_free (peer);
+		}
+		get { g_value_set_string (VAL, self->peer_id); };
+
+	property POINTER context
+		(nick = "main context",
+		 blurb = "The main context that this manager should run in",
+		 default_value = NULL,
+		 flags = CONSTRUCT_ONLY,
+		 link);
+
+	signal private last NONE (POINTER) void
+	new_connection (self, GTcpSocket *client (check null))
+	{
+		GInetAddr *addr;
+		gushort port;
+		gchar *name;
+
+		/* get the address, name, and port of the remote peer */
+		addr = gnet_tcp_socket_get_remote_inetaddr (client);
+		name = gnet_inetaddr_get_canonical_name (addr);
+		port = gnet_inetaddr_get_port (addr);
+
+		g_debug ("connection received from %s, port %d", name, port);
+
+		g_free (name);
+		gnet_inetaddr_delete (addr);
+
+		/* create a new peer for the client, which will automatically attach to the correct torrent */
+		/* bt_peer_new (self, NULL, client, NULL); */
+
+		return;
+	}
+
+	private void
+	accept_callback (GTcpSocket *server (check null), GTcpSocket *client (check null), Bt:Manager *self (check null type))
+	{
+		/* emit the new-connection signal */
+		self_new_connection (self, client);
+
+		return;
+	}
+
+	/**
+	 * set_port:
+	 * @self: the manager
+	 * @port: the new port
+	 * @error: a return location for errors
+	 *
+	 * Set the port that this manager should listen on for incoming connections.
+	 * If the manager is already listening, it is restarted on the new port.
+	 *
+	 * Returns: TRUE on success, otherwise FALSE and @error is set
+	 */
+	public gboolean
+	set_port (self, gushort port, GError **error)
+	{
+		gboolean running;
+
+		if (self->port == port)
+			return TRUE;
+
+		if (port < 1024) {
+			g_set_error (error, BT_ERROR, BT_ERROR_NETWORK, "cannot use ports below 1024");
+			return FALSE;
+		}
+
+		/* store whether we were running before, so that we can start again afterwards */
+		running = self->accept_socket != NULL ? TRUE : FALSE;
+
+		if (running)
+			self_accept_stop (self);
+
+		self->port = port;
+
+		/* if we were running, start it again */
+		if (running)
+			if (!self_accept_start (self, error))
+				return FALSE;
+
+		return TRUE;
+	}
+
+	/**
+	 * get_port:
+	 * @self: the manager
+	 *
+	 * Get the port that this manager listens on for incoming connections.
+	 *
+	 * Returns: the port
+	 */
+	public gushort
+	get_port (self)
+	{
+		return self->port;
+	}
+
+	/**
+	 * get_peer_id:
+	 * @self: the manager
+	 *
+	 * Get the peer id that torrents will send to trackers and peers.
+	 *
+	 * Returns: the peer id, which should not be modified or freed
+	 */
+	public const gchar *
+	get_peer_id (self)
+	{
+		return self->peer_id;
+	}
+
+	public void
+	add_torrent (self, Bt:Torrent *torrent (check null type))
+	{
+		g_hash_table_insert (self->torrents, torrent->infohash_string, g_object_ref (torrent));
+	}
+
+	public BtTorrent *
+	get_torrent (self, const gchar *infohash (check null))
+	{
+		gchar *string;
+		BtTorrent *torrent;
+
+		string = bt_hash_to_string (infohash);
+
+		torrent = bt_manager_get_torrent_string (self, string);
+
+		g_free (string);
+
+		return torrent;
+	}
+
+	public BtTorrent *
+	get_torrent_string (self, const gchar *infohash (check null))
+	{
+		return BT_TORRENT (g_object_ref (G_OBJECT (g_hash_table_lookup (self->torrents, infohash))));
+	}
+
+	/**
+	 * accept_stop:
+	 * @self: the manager
+	 *
+	 * Stop listening for incoming connections.
+	 */
+	public void
+	accept_stop (self)
+	{
+		gnet_tcp_socket_delete (self->accept_socket);
+
+		self->accept_socket = NULL;
+	}
+
+	/**
+	 * accept_start:
+	 * @self: the manager
+	 * @error: a return location for errors
+	 *
+	 * Start listening for incoming connections.
+	 *
+	 * Returns: TRUE on success, otherwise FALSE and @error is set
+	 */
+	public gboolean
+	accept_start (self, GError **error)
+	{
+		if (self->accept_socket != NULL)
+			return TRUE;
+
+		self->accept_socket = gnet_tcp_socket_server_new_with_port (self->port);
+
+		if (!self->accept_socket) {
+			g_set_error (error, BT_ERROR, BT_ERROR_NETWORK, "could not set up listening socket");
+			return FALSE;
+		}
+
+		gnet_tcp_socket_server_accept_async (self->accept_socket, (GTcpSocketAcceptFunc) self_accept_callback, self);
+
+		return TRUE;
+	}
+
+	/**
+	 * add_source:
+	 * @self: the manager
+	 * @source: the #GSource to add
+	 *
+	 * Adds a GSource to be scheduled for inclusion in the main loop
+	 */
+	public guint
+	add_source (self, GSource *source (check null))
+	{
+		return g_source_attach (source, self->context);
+	}
+
+}

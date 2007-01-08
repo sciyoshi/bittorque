@@ -1,0 +1,14 @@
+Import('*')
+
+envlib.Command(['bt-manager.c', 'bt-manager.h'], 'bt-manager.gob', 'gob2 --no-private-header -o ${SOURCE.dir} $SOURCE')
+envlib.Command(['bt-torrent.c', 'bt-torrent.h'], 'bt-torrent.gob', 'gob2 --no-private-header -o ${SOURCE.dir} $SOURCE')
+envlib.Command(['bt-peer.c', 'bt-peer.h'], 'bt-peer.gob', 'gob2 --no-private-header -o ${SOURCE.dir} $SOURCE')
+
+envlib.StaticLibrary('bittorque',
+	['bt-torrent.c',
+	 'bt-manager.c',
+	 'bt-bencode.c',
+	 'bt-peer.c',
+	 'bt-utils.c',
+	 'sha1.c',
+	 'rc4.c'])
