@@ -680,7 +680,6 @@ class Bt:Torrent from G:Object {
 	{
 		BtBlock *data;
 
-
 		g_async_queue_ref (self->block_queue);
 
 		while ((data = (BtBlock *) g_async_queue_pop (self->block_queue))) {
