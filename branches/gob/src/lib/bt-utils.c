@@ -165,6 +165,14 @@ bt_hash_to_string (const gchar *hash)
 	return string;
 }
 
+/**
+ * bt_client_name_from_id:
+ * @id: the peer id
+ *
+ * Finds the name of a peer's client, given his peer id.
+ *
+ * Returns: a newly allocated string with the name of the client, to be freed with g_free
+ */
 gchar *
 bt_client_name_from_id (const gchar *id)
 {
@@ -203,6 +211,27 @@ bt_client_name_from_id (const gchar *id)
 
 
 	return g_strdup_printf ("Unknown client (%c%c%c%c%c%c%c%c)", id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7]);
+}
+
+/**
+ * bt_size_to_string:
+ * @size: the size to convert to a string
+ *
+ * Gives a textual representation of a size in bytes.
+ *
+ * Returns: the newly allocated string, to be freed with g_free
+ */
+gchar *
+bt_size_to_string (guint64 size)
+{
+	if (size < 1024)
+		return g_strdup_printf ("%lld B", size);
+	if (size < 1048576)
+		return g_strdup_printf ("%d kB", (guint32) (size / 1024));
+	if (size < 1073741824)
+		return g_strdup_printf ("%.2f MB", ((gdouble) (size / 1024)) / 1024);
+
+	return g_strdup_printf ("%.2f GB", ((gdouble) (size / (1048576))) / 1024);
 }
 
 GSource *

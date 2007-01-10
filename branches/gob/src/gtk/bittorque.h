@@ -48,6 +48,9 @@ typedef struct {
 	GtkWidget     *preferences_dialog;
 	GtkWidget     *plugins_dialog;
 
+	GtkWidget     *torrents_treeview;
+	GtkListStore  *torrents_list;
+
 	/* stuff for the open dialog */
 	GtkWidget     *open_dialog;
 	GtkWidget     *open_dialog_torrents_treeview;

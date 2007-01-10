@@ -1,4 +1,35 @@
 <MACRO>
+<NAME>SHA1_DATA_SIZE</NAME>
+#define SHA1_DATA_SIZE 64
+</MACRO>
+<MACRO>
+<NAME>SHA1_DIGEST_SIZE</NAME>
+#define SHA1_DIGEST_SIZE 20
+</MACRO>
+<STRUCT>
+<NAME>SHA1Context</NAME>
+typedef struct {
+	guint32 digest[5];
+	guint32 data[16];
+	guint32 low, high;
+} SHA1Context;
+</STRUCT>
+<FUNCTION>
+<NAME>sha1_init</NAME>
+<RETURNS>void </RETURNS>
+SHA1Context *sha
+</FUNCTION>
+<FUNCTION>
+<NAME>sha1_update</NAME>
+<RETURNS>void </RETURNS>
+SHA1Context *sha, const gchar *buf, gsize len
+</FUNCTION>
+<FUNCTION>
+<NAME>sha1_finish</NAME>
+<RETURNS>void </RETURNS>
+SHA1Context *sha, gchar *out
+</FUNCTION>
+<MACRO>
 <NAME>BT_BENCODE_ERROR</NAME>
 #define BT_BENCODE_ERROR (bt_bencode_error_quark ())
 </MACRO>
@@ -50,12 +81,75 @@ BtBencode *data
 <FUNCTION>
 <NAME>bt_bencode_decode</NAME>
 <RETURNS>BtBencode *</RETURNS>
-const gchar *buf, GError **error
+const gchar *buf, gsize len, GError **error
 </FUNCTION>
 <FUNCTION>
 <NAME>bt_bencode_encode</NAME>
 <RETURNS>GString   *</RETURNS>
 BtBencode *data
+</FUNCTION>
+<MACRO>
+<NAME>BT_TYPE_TCP_SOCKET</NAME>
+#define BT_TYPE_TCP_SOCKET (bt_tcp_socket_get_type ())
+</MACRO>
+<MACRO>
+<NAME>BT_TYPE_INET_ADDR</NAME>
+#define BT_TYPE_INET_ADDR (bt_inet_addr_get_type ())
+</MACRO>
+<FUNCTION>
+<NAME>bt_tcp_socket_get_type</NAME>
+<RETURNS>GType    </RETURNS>
+
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_inet_addr_get_type</NAME>
+<RETURNS>GType    </RETURNS>
+
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_get_info_hash</NAME>
+<RETURNS>gchar   *</RETURNS>
+BtBencode *info
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_create_peer_id</NAME>
+<RETURNS>gchar   *</RETURNS>
+
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_url_encode</NAME>
+<RETURNS>gchar   *</RETURNS>
+const gchar *string, gsize size
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_hash_to_string</NAME>
+<RETURNS>gchar   *</RETURNS>
+const gchar *hash
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_client_name_from_id</NAME>
+<RETURNS>gchar   *</RETURNS>
+const gchar *id
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_size_to_string</NAME>
+<RETURNS>gchar   *</RETURNS>
+guint64 size
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_io_source_create</NAME>
+<RETURNS>GSource *</RETURNS>
+BtManager *manager, GIOChannel *channel, GIOCondition condition, GSourceFunc callback, gpointer data
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_timeout_source_create</NAME>
+<RETURNS>GSource *</RETURNS>
+BtManager *manager, guint timeout, GSourceFunc callback, gpointer data
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_idle_source_create</NAME>
+<RETURNS>GSource *</RETURNS>
+BtManager *manager, GSourceFunc callback, gpointer data
 </FUNCTION>
 <STRUCT>
 <NAME>RC4Context</NAME>
@@ -74,44 +168,18 @@ RC4Context *rc4, const gchar *key, gsize len
 <RETURNS>void </RETURNS>
 RC4Context *rc4, gchar *buf, gsize len
 </FUNCTION>
-<MACRO>
-<NAME>SHA1_DATA_SIZE</NAME>
-#define SHA1_DATA_SIZE 64
-</MACRO>
-<MACRO>
-<NAME>SHA1_DIGEST_SIZE</NAME>
-#define SHA1_DIGEST_SIZE 20
-</MACRO>
-<STRUCT>
-<NAME>SHA1Context</NAME>
-typedef struct {
-	guint32 digest[5];
-	guint32 data[16];
-	guint32 low, high;
-} SHA1Context;
-</STRUCT>
-<FUNCTION>
-<NAME>sha1_init</NAME>
-<RETURNS>void </RETURNS>
-SHA1Context *sha
-</FUNCTION>
-<FUNCTION>
-<NAME>sha1_update</NAME>
-<RETURNS>void </RETURNS>
-SHA1Context *sha, const gchar *buf, gsize len
-</FUNCTION>
-<FUNCTION>
-<NAME>sha1_finish</NAME>
-<RETURNS>void </RETURNS>
-SHA1Context *sha, gchar *out
-</FUNCTION>
 <STRUCT>
 <NAME>BtTorrent</NAME>
 </STRUCT>
 <ENUM>
 <NAME>BtError</NAME>
 typedef enum {
-	BT_ERROR_NETWORK
+	BT_ERROR_NETWORK,
+	BT_ERROR_RESOLVING,
+	BT_ERROR_INVALID_TORRENT,
+	BT_ERROR_PEER_HANDSHAKE,
+	BT_ERROR_TRACKER,
+	BT_ERROR_INVALID
 } BtError;
 </ENUM>
 <MACRO>
@@ -168,6 +236,7 @@ struct _BtManager {
 	gchar * peer_id; /* protected */
 	GTcpSocket * accept_socket; /* protected */
 	GMainContext * context; /* protected */
+	GHashTable * torrents; /* protected */
 };
 </STRUCT>
 <STRUCT>
@@ -201,6 +270,21 @@ BtManager * self
 BtManager * self
 </FUNCTION>
 <FUNCTION>
+<NAME>bt_manager_add_torrent</NAME>
+<RETURNS>void 	</RETURNS>
+BtManager * self,BtTorrent * torrent
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_manager_get_torrent</NAME>
+<RETURNS>BtTorrent *</RETURNS>
+BtManager * self,const gchar * infohash
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_manager_get_torrent_string</NAME>
+<RETURNS>BtTorrent *</RETURNS>
+BtManager * self,const gchar * infohash
+</FUNCTION>
+<FUNCTION>
 <NAME>bt_manager_accept_stop</NAME>
 <RETURNS>void 	</RETURNS>
 BtManager * self
@@ -209,6 +293,11 @@ BtManager * self
 <NAME>bt_manager_accept_start</NAME>
 <RETURNS>gboolean 	</RETURNS>
 BtManager * self,GError ** error
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_manager_add_source</NAME>
+<RETURNS>guint 	</RETURNS>
+BtManager * self,GSource * source
 </FUNCTION>
 <MACRO>
 <NAME>bt_manager_connect__new_connection</NAME>
@@ -285,6 +374,53 @@ BtManager * self,GError ** error
 <STRUCT>
 <NAME>BtManager</NAME>
 </STRUCT>
+<STRUCT>
+<NAME>BtPeer</NAME>
+</STRUCT>
+<ENUM>
+<NAME>BtTorrentPriority</NAME>
+typedef enum {
+	BT_TORRENT_PRIORITY_LOW,
+	BT_TORRENT_PRIORITY_NORMAL,
+	BT_TORRENT_PRIORITY_HIGH
+} BtTorrentPriority;
+</ENUM>
+<MACRO>
+<NAME>BT_TYPE_TORRENT_PRIORITY</NAME>
+#define BT_TYPE_TORRENT_PRIORITY bt_torrent_priority_get_type()
+</MACRO>
+<FUNCTION>
+<NAME>bt_torrent_priority_get_type</NAME>
+<RETURNS>GType </RETURNS>
+void
+</FUNCTION>
+<MACRO>
+<NAME>BT_TYPE_TORRENT_FILE</NAME>
+#define BT_TYPE_TORRENT_FILE (bt_torrent_file_get_type ())
+</MACRO>
+<STRUCT>
+<NAME>BtTorrentFile</NAME>
+typedef struct {
+	gchar   *name;
+	gint64   size;
+	gint64   offset;
+	gboolean download;
+} BtTorrentFile;
+</STRUCT>
+<FUNCTION>
+<NAME>bt_torrent_file_get_type</NAME>
+<RETURNS>GType </RETURNS>
+
+</FUNCTION>
+<STRUCT>
+<NAME>BtBlock</NAME>
+typedef struct {
+	gulong   piece;
+	gulong   offset;
+	gsize    length;
+	gchar   *block;
+} BtBlock;
+</STRUCT>
 <MACRO>
 <NAME>BT_TYPE_TORRENT</NAME>
 #define BT_TYPE_TORRENT	(bt_torrent_get_type())
@@ -316,6 +452,37 @@ BtManager * self,GError ** error
 <NAME>BtTorrent</NAME>
 struct _BtTorrent {
 	GObject __parent__;
+	/*< public >*/
+	gchar * bitfield;
+	/*< private >*/
+	BtManager * manager; /* protected */
+	gchar * filename; /* protected */
+	gchar * location; /* protected */
+	gchar * name; /* protected */
+	gchar * announce; /* protected */
+	GSList * announce_list; /* protected */
+	gchar * infohash; /* protected */
+	gchar * infohash_string; /* protected */
+	gint64 size; /* protected */
+	gsize piece_length; /* protected */
+	guint num_pieces; /* protected */
+	gdouble completion; /* protected */
+	guint num_blocks; /* protected */
+	guint block_size; /* protected */
+	GArray * files; /* protected */
+	GConnHttp * tracker_socket; /* protected */
+	guint tracker_current_tier; /* protected */
+	guint tracker_current_tracker; /* protected */
+	gint tracker_interval; /* protected */
+	gint tracker_min_interval; /* protected */
+	gchar * tracker_id; /* protected */
+	GString * cache; /* protected */
+	GSList * peers; /* protected */
+	GAsyncQueue * block_queue; /* protected */
+	GThread * file_thread; /* protected */
+	GSource * check_peers_source; /* protected */
+	GSource * announce_source; /* protected */
+	GTimeVal * announce_start; /* protected */
 };
 </STRUCT>
 <STRUCT>
@@ -332,3 +499,477 @@ struct _BtTorrentClass {
 <RETURNS>GType	</RETURNS>
 void
 </FUNCTION>
+<FUNCTION>
+<NAME>bt_torrent_announce</NAME>
+<RETURNS>gboolean 	</RETURNS>
+BtTorrent * self
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_torrent_announce_stop</NAME>
+<RETURNS>gboolean 	</RETURNS>
+BtTorrent * self
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_torrent_start_downloading</NAME>
+<RETURNS>gboolean 	</RETURNS>
+BtTorrent * self,GError ** error
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_torrent_pause_downloading</NAME>
+<RETURNS>gboolean 	</RETURNS>
+BtTorrent * self
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_torrent_stop_downloading</NAME>
+<RETURNS>gboolean 	</RETURNS>
+BtTorrent * self
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_torrent_add_peer</NAME>
+<RETURNS>gboolean 	</RETURNS>
+BtTorrent * self,BtPeer * peer
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_torrent_set_location</NAME>
+<RETURNS>void 	</RETURNS>
+BtTorrent * self,const gchar * location
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_torrent_new</NAME>
+<RETURNS>BtTorrent *</RETURNS>
+BtManager * manager,const gchar * filename
+</FUNCTION>
+<MACRO>
+<NAME>BT_TORRENT_GET_PROP_NAME</NAME>
+#define BT_TORRENT_GET_PROP_NAME(arg)	"name", __extension__ ({gchar **z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_PROP_FILENAME</NAME>
+#define BT_TORRENT_PROP_FILENAME(arg)    	"filename", __extension__ ({gchar *z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_GET_PROP_FILENAME</NAME>
+#define BT_TORRENT_GET_PROP_FILENAME(arg)	"filename", __extension__ ({gchar **z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_PROP_LOCATION</NAME>
+#define BT_TORRENT_PROP_LOCATION(arg)    	"location", __extension__ ({gchar *z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_GET_PROP_LOCATION</NAME>
+#define BT_TORRENT_GET_PROP_LOCATION(arg)	"location", __extension__ ({gchar **z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_GET_PROP_SIZE</NAME>
+#define BT_TORRENT_GET_PROP_SIZE(arg)	"size", __extension__ ({guint64 *z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_GET_PROP_PIECE_LENGTH</NAME>
+#define BT_TORRENT_GET_PROP_PIECE_LENGTH(arg)	"piece_length", __extension__ ({gulong *z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_GET_PROP_NUM_PIECES</NAME>
+#define BT_TORRENT_GET_PROP_NUM_PIECES(arg)	"num_pieces", __extension__ ({gulong *z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_PROP_MANAGER</NAME>
+#define BT_TORRENT_PROP_MANAGER(arg)    	"manager", __extension__ ({GObject *z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_GET_PROP_MANAGER</NAME>
+#define BT_TORRENT_GET_PROP_MANAGER(arg)	"manager", __extension__ ({GObject **z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_GET_PROP_NAME</NAME>
+#define BT_TORRENT_GET_PROP_NAME(arg)	"name",(gchar **)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_PROP_FILENAME</NAME>
+#define BT_TORRENT_PROP_FILENAME(arg)    	"filename",(gchar *)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_GET_PROP_FILENAME</NAME>
+#define BT_TORRENT_GET_PROP_FILENAME(arg)	"filename",(gchar **)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_PROP_LOCATION</NAME>
+#define BT_TORRENT_PROP_LOCATION(arg)    	"location",(gchar *)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_GET_PROP_LOCATION</NAME>
+#define BT_TORRENT_GET_PROP_LOCATION(arg)	"location",(gchar **)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_GET_PROP_SIZE</NAME>
+#define BT_TORRENT_GET_PROP_SIZE(arg)	"size",(guint64 *)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_GET_PROP_PIECE_LENGTH</NAME>
+#define BT_TORRENT_GET_PROP_PIECE_LENGTH(arg)	"piece_length",(gulong *)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_GET_PROP_NUM_PIECES</NAME>
+#define BT_TORRENT_GET_PROP_NUM_PIECES(arg)	"num_pieces",(gulong *)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_PROP_MANAGER</NAME>
+#define BT_TORRENT_PROP_MANAGER(arg)    	"manager",(GObject *)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_TORRENT_GET_PROP_MANAGER</NAME>
+#define BT_TORRENT_GET_PROP_MANAGER(arg)	"manager",(GObject **)(arg)
+</MACRO>
+<STRUCT>
+<NAME>BtManager</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>BtTorrent</NAME>
+</STRUCT>
+<ENUM>
+<NAME>BtPeerStatus</NAME>
+typedef enum {
+	BT_PEER_STATUS_CONNECTING,
+	BT_PEER_STATUS_CONNECTED_SEND,
+	BT_PEER_STATUS_CONNECTED_WAIT,
+	BT_PEER_STATUS_SEND_HANDSHAKE,
+	BT_PEER_STATUS_WAIT_HANDSHAKE,
+	BT_PEER_STATUS_DISCONNECTING,
+	BT_PEER_STATUS_DISCONNECTED,
+	BT_PEER_STATUS_IDLE_BITFIELD,
+	BT_PEER_STATUS_IDLE_PEER_ID,
+	BT_PEER_STATUS_IDLE
+} BtPeerStatus;
+</ENUM>
+<MACRO>
+<NAME>BT_TYPE_PEER_STATUS</NAME>
+#define BT_TYPE_PEER_STATUS bt_peer_status_get_type()
+</MACRO>
+<FUNCTION>
+<NAME>bt_peer_status_get_type</NAME>
+<RETURNS>GType </RETURNS>
+void
+</FUNCTION>
+<MACRO>
+<NAME>BT_TYPE_PEER</NAME>
+#define BT_TYPE_PEER	(bt_peer_get_type())
+</MACRO>
+<MACRO>
+<NAME>BT_PEER</NAME>
+#define BT_PEER(obj)	G_TYPE_CHECK_INSTANCE_CAST((obj), bt_peer_get_type(), BtPeer)
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_CONST</NAME>
+#define BT_PEER_CONST(obj)	G_TYPE_CHECK_INSTANCE_CAST((obj), bt_peer_get_type(), BtPeer const)
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_CLASS</NAME>
+#define BT_PEER_CLASS(klass)	G_TYPE_CHECK_CLASS_CAST((klass), bt_peer_get_type(), BtPeerClass)
+</MACRO>
+<MACRO>
+<NAME>BT_IS_PEER</NAME>
+#define BT_IS_PEER(obj)	G_TYPE_CHECK_INSTANCE_TYPE((obj), bt_peer_get_type ())
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_CLASS</NAME>
+#define BT_PEER_GET_CLASS(obj)	G_TYPE_INSTANCE_GET_CLASS((obj), bt_peer_get_type(), BtPeerClass)
+</MACRO>
+<STRUCT>
+<NAME>BtPeer</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>BtPeer</NAME>
+struct _BtPeer {
+	GObject __parent__;
+	/*< private >*/
+	BtManager * manager; /* protected */
+	BtTorrent * torrent; /* protected */
+	GTcpSocket * tcp_socket; /* protected */
+	GConn * socket; /* protected */
+	GInetAddr * address; /* protected */
+	gchar * address_string; /* protected */
+	gchar * peer_id; /* protected */
+	GSource * keepalive_source; /* protected */
+	gboolean alive; /* protected */
+	BtPeerStatus status; /* protected */
+	gboolean got_bitfield; /* protected */
+	GString * buffer; /* protected */
+	gsize pos; /* protected */
+	guchar * bitfield; /* protected */
+	gdouble completion; /* protected */
+	gboolean choking; /* protected */
+	gboolean interesting; /* protected */
+	gboolean choked; /* protected */
+	gboolean interested; /* protected */
+};
+</STRUCT>
+<STRUCT>
+<NAME>BtPeerClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>BtPeerClass</NAME>
+struct _BtPeerClass {
+	GObjectClass __parent__;
+	/*signal*/void (* data_read) (BtPeer * self, gchar * buf, gsize len);
+	/*signal*/void (* handshake_completed) (BtPeer * self);
+	/*signal*/void (* connected) (BtPeer * self);
+	/*signal*/void (* disconnected) (BtPeer * self);
+};
+</STRUCT>
+<FUNCTION>
+<NAME>bt_peer_get_type</NAME>
+<RETURNS>GType	</RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_peer_set_choking</NAME>
+<RETURNS>void 	</RETURNS>
+BtPeer * self,gboolean choking
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_peer_set_interesting</NAME>
+<RETURNS>void 	</RETURNS>
+BtPeer * self,gboolean interesting
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_peer_get_choking</NAME>
+<RETURNS>gboolean 	</RETURNS>
+BtPeer * self
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_peer_get_interesting</NAME>
+<RETURNS>gboolean 	</RETURNS>
+BtPeer * self
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_peer_get_choked</NAME>
+<RETURNS>gboolean 	</RETURNS>
+BtPeer * self
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_peer_get_interested</NAME>
+<RETURNS>gboolean 	</RETURNS>
+BtPeer * self
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_peer_connect</NAME>
+<RETURNS>void 	</RETURNS>
+BtPeer * self
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_peer_disconnect</NAME>
+<RETURNS>gboolean 	</RETURNS>
+BtPeer * self
+</FUNCTION>
+<FUNCTION>
+<NAME>bt_peer_new</NAME>
+<RETURNS>BtPeer *</RETURNS>
+BtManager * manager,BtTorrent * torrent,GTcpSocket * socket,GInetAddr * address
+</FUNCTION>
+<MACRO>
+<NAME>bt_peer_connect__data_read</NAME>
+#define bt_peer_connect__data_read(object,func,data)	g_signal_connect(BT_PEER(__extension__ ({BtPeer *___object = (object); ___object; })),"data_read",(GCallback) __extension__ ({void (* ___data_read) (BtPeer * ___fake___self, gchar * ___fake___buf, gsize ___fake___len, gpointer ___data ) = (func); ___data_read; }), (data))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect_after__data_read</NAME>
+#define bt_peer_connect_after__data_read(object,func,data)	g_signal_connect_after(BT_PEER(__extension__ ({BtPeer *___object = (object); ___object; })),"data_read",(GCallback) __extension__ ({void (* ___data_read) (BtPeer * ___fake___self, gchar * ___fake___buf, gsize ___fake___len, gpointer ___data ) = (func); ___data_read; }), (data))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect_data__data_read</NAME>
+#define bt_peer_connect_data__data_read(object,func,data,destroy_data,flags)	g_signal_connect_data(BT_PEER(__extension__ ({BtPeer *___object = (object); ___object; })),"data_read",(GCallback) __extension__ ({void (* ___data_read) (BtPeer * ___fake___self, gchar * ___fake___buf, gsize ___fake___len, gpointer ___data ) = (func); ___data_read; }), (data), (destroy_data), (GConnectFlags)(flags))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect__handshake_completed</NAME>
+#define bt_peer_connect__handshake_completed(object,func,data)	g_signal_connect(BT_PEER(__extension__ ({BtPeer *___object = (object); ___object; })),"handshake_completed",(GCallback) __extension__ ({void (* ___handshake_completed) (BtPeer * ___fake___self, gpointer ___data ) = (func); ___handshake_completed; }), (data))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect_after__handshake_completed</NAME>
+#define bt_peer_connect_after__handshake_completed(object,func,data)	g_signal_connect_after(BT_PEER(__extension__ ({BtPeer *___object = (object); ___object; })),"handshake_completed",(GCallback) __extension__ ({void (* ___handshake_completed) (BtPeer * ___fake___self, gpointer ___data ) = (func); ___handshake_completed; }), (data))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect_data__handshake_completed</NAME>
+#define bt_peer_connect_data__handshake_completed(object,func,data,destroy_data,flags)	g_signal_connect_data(BT_PEER(__extension__ ({BtPeer *___object = (object); ___object; })),"handshake_completed",(GCallback) __extension__ ({void (* ___handshake_completed) (BtPeer * ___fake___self, gpointer ___data ) = (func); ___handshake_completed; }), (data), (destroy_data), (GConnectFlags)(flags))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect__connected</NAME>
+#define bt_peer_connect__connected(object,func,data)	g_signal_connect(BT_PEER(__extension__ ({BtPeer *___object = (object); ___object; })),"connected",(GCallback) __extension__ ({void (* ___connected) (BtPeer * ___fake___self, gpointer ___data ) = (func); ___connected; }), (data))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect_after__connected</NAME>
+#define bt_peer_connect_after__connected(object,func,data)	g_signal_connect_after(BT_PEER(__extension__ ({BtPeer *___object = (object); ___object; })),"connected",(GCallback) __extension__ ({void (* ___connected) (BtPeer * ___fake___self, gpointer ___data ) = (func); ___connected; }), (data))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect_data__connected</NAME>
+#define bt_peer_connect_data__connected(object,func,data,destroy_data,flags)	g_signal_connect_data(BT_PEER(__extension__ ({BtPeer *___object = (object); ___object; })),"connected",(GCallback) __extension__ ({void (* ___connected) (BtPeer * ___fake___self, gpointer ___data ) = (func); ___connected; }), (data), (destroy_data), (GConnectFlags)(flags))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect__disconnected</NAME>
+#define bt_peer_connect__disconnected(object,func,data)	g_signal_connect(BT_PEER(__extension__ ({BtPeer *___object = (object); ___object; })),"disconnected",(GCallback) __extension__ ({void (* ___disconnected) (BtPeer * ___fake___self, gpointer ___data ) = (func); ___disconnected; }), (data))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect_after__disconnected</NAME>
+#define bt_peer_connect_after__disconnected(object,func,data)	g_signal_connect_after(BT_PEER(__extension__ ({BtPeer *___object = (object); ___object; })),"disconnected",(GCallback) __extension__ ({void (* ___disconnected) (BtPeer * ___fake___self, gpointer ___data ) = (func); ___disconnected; }), (data))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect_data__disconnected</NAME>
+#define bt_peer_connect_data__disconnected(object,func,data,destroy_data,flags)	g_signal_connect_data(BT_PEER(__extension__ ({BtPeer *___object = (object); ___object; })),"disconnected",(GCallback) __extension__ ({void (* ___disconnected) (BtPeer * ___fake___self, gpointer ___data ) = (func); ___disconnected; }), (data), (destroy_data), (GConnectFlags)(flags))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect__data_read</NAME>
+#define bt_peer_connect__data_read(object,func,data)	g_signal_connect(BT_PEER(object),"data_read",(GCallback)(func),(data))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect_after__data_read</NAME>
+#define bt_peer_connect_after__data_read(object,func,data)	g_signal_connect_after(BT_PEER(object),"data_read",(GCallback)(func),(data))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect_data__data_read</NAME>
+#define bt_peer_connect_data__data_read(object,func,data,destroy_data,flags)	g_signal_connect_data(BT_PEER(object),"data_read",(GCallback)(func),(data),(destroy_data),(GConnectFlags)(flags))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect__handshake_completed</NAME>
+#define bt_peer_connect__handshake_completed(object,func,data)	g_signal_connect(BT_PEER(object),"handshake_completed",(GCallback)(func),(data))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect_after__handshake_completed</NAME>
+#define bt_peer_connect_after__handshake_completed(object,func,data)	g_signal_connect_after(BT_PEER(object),"handshake_completed",(GCallback)(func),(data))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect_data__handshake_completed</NAME>
+#define bt_peer_connect_data__handshake_completed(object,func,data,destroy_data,flags)	g_signal_connect_data(BT_PEER(object),"handshake_completed",(GCallback)(func),(data),(destroy_data),(GConnectFlags)(flags))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect__connected</NAME>
+#define bt_peer_connect__connected(object,func,data)	g_signal_connect(BT_PEER(object),"connected",(GCallback)(func),(data))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect_after__connected</NAME>
+#define bt_peer_connect_after__connected(object,func,data)	g_signal_connect_after(BT_PEER(object),"connected",(GCallback)(func),(data))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect_data__connected</NAME>
+#define bt_peer_connect_data__connected(object,func,data,destroy_data,flags)	g_signal_connect_data(BT_PEER(object),"connected",(GCallback)(func),(data),(destroy_data),(GConnectFlags)(flags))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect__disconnected</NAME>
+#define bt_peer_connect__disconnected(object,func,data)	g_signal_connect(BT_PEER(object),"disconnected",(GCallback)(func),(data))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect_after__disconnected</NAME>
+#define bt_peer_connect_after__disconnected(object,func,data)	g_signal_connect_after(BT_PEER(object),"disconnected",(GCallback)(func),(data))
+</MACRO>
+<MACRO>
+<NAME>bt_peer_connect_data__disconnected</NAME>
+#define bt_peer_connect_data__disconnected(object,func,data,destroy_data,flags)	g_signal_connect_data(BT_PEER(object),"disconnected",(GCallback)(func),(data),(destroy_data),(GConnectFlags)(flags))
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_PROP_CHOKING</NAME>
+#define BT_PEER_PROP_CHOKING(arg)    	"choking", __extension__ ({gboolean z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_PROP_CHOKING</NAME>
+#define BT_PEER_GET_PROP_CHOKING(arg)	"choking", __extension__ ({gboolean *z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_PROP_INTERESTING</NAME>
+#define BT_PEER_PROP_INTERESTING(arg)    	"interesting", __extension__ ({gboolean z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_PROP_INTERESTING</NAME>
+#define BT_PEER_GET_PROP_INTERESTING(arg)	"interesting", __extension__ ({gboolean *z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_PROP_CHOKED</NAME>
+#define BT_PEER_GET_PROP_CHOKED(arg)	"choked", __extension__ ({gboolean *z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_PROP_INTERESTED</NAME>
+#define BT_PEER_GET_PROP_INTERESTED(arg)	"interested", __extension__ ({gboolean *z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_PROP_MANAGER</NAME>
+#define BT_PEER_PROP_MANAGER(arg)    	"manager", __extension__ ({GObject *z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_PROP_MANAGER</NAME>
+#define BT_PEER_GET_PROP_MANAGER(arg)	"manager", __extension__ ({GObject **z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_PROP_TORRENT</NAME>
+#define BT_PEER_PROP_TORRENT(arg)    	"torrent", __extension__ ({GObject *z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_PROP_TORRENT</NAME>
+#define BT_PEER_GET_PROP_TORRENT(arg)	"torrent", __extension__ ({GObject **z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_PROP_TCP_SOCKET</NAME>
+#define BT_PEER_PROP_TCP_SOCKET(arg)    	"tcp_socket", __extension__ ({gpointer z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_PROP_TCP_SOCKET</NAME>
+#define BT_PEER_GET_PROP_TCP_SOCKET(arg)	"tcp_socket", __extension__ ({gpointer *z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_PROP_ADDRESS</NAME>
+#define BT_PEER_PROP_ADDRESS(arg)    	"address", __extension__ ({gpointer z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_PROP_ADDRESS</NAME>
+#define BT_PEER_GET_PROP_ADDRESS(arg)	"address", __extension__ ({gpointer *z = (arg); z;})
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_PROP_CHOKING</NAME>
+#define BT_PEER_PROP_CHOKING(arg)    	"choking",(gboolean )(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_PROP_CHOKING</NAME>
+#define BT_PEER_GET_PROP_CHOKING(arg)	"choking",(gboolean *)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_PROP_INTERESTING</NAME>
+#define BT_PEER_PROP_INTERESTING(arg)    	"interesting",(gboolean )(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_PROP_INTERESTING</NAME>
+#define BT_PEER_GET_PROP_INTERESTING(arg)	"interesting",(gboolean *)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_PROP_CHOKED</NAME>
+#define BT_PEER_GET_PROP_CHOKED(arg)	"choked",(gboolean *)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_PROP_INTERESTED</NAME>
+#define BT_PEER_GET_PROP_INTERESTED(arg)	"interested",(gboolean *)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_PROP_MANAGER</NAME>
+#define BT_PEER_PROP_MANAGER(arg)    	"manager",(GObject *)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_PROP_MANAGER</NAME>
+#define BT_PEER_GET_PROP_MANAGER(arg)	"manager",(GObject **)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_PROP_TORRENT</NAME>
+#define BT_PEER_PROP_TORRENT(arg)    	"torrent",(GObject *)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_PROP_TORRENT</NAME>
+#define BT_PEER_GET_PROP_TORRENT(arg)	"torrent",(GObject **)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_PROP_TCP_SOCKET</NAME>
+#define BT_PEER_PROP_TCP_SOCKET(arg)    	"tcp_socket",(gpointer )(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_PROP_TCP_SOCKET</NAME>
+#define BT_PEER_GET_PROP_TCP_SOCKET(arg)	"tcp_socket",(gpointer *)(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_PROP_ADDRESS</NAME>
+#define BT_PEER_PROP_ADDRESS(arg)    	"address",(gpointer )(arg)
+</MACRO>
+<MACRO>
+<NAME>BT_PEER_GET_PROP_ADDRESS</NAME>
+#define BT_PEER_GET_PROP_ADDRESS(arg)	"address",(gpointer *)(arg)
+</MACRO>

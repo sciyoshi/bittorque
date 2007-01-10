@@ -22,9 +22,9 @@
 
 #include <gnet.h>
 
-#ifndef __TYPEDEF_BT_TORRENT__
-#define __TYPEDEF_BT_TORRENT__
-typedef struct _BtTorrent BtTorrent;
+#ifndef __TYPEDEF_BT_MANAGER__
+#define __TYPEDEF_BT_MANAGER__
+typedef struct _BtManager BtManager;
 #endif
 
 #include "bt-torrent.h"

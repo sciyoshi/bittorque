@@ -50,6 +50,8 @@ gchar   *bt_hash_to_string (const gchar *hash);
 
 gchar   *bt_client_name_from_id (const gchar *id);
 
+gchar   *bt_size_to_string (guint64 size);
+
 GSource *bt_io_source_create (BtManager *manager, GIOChannel *channel, GIOCondition condition, GSourceFunc callback, gpointer data);
 
 GSource *bt_timeout_source_create (BtManager *manager, guint timeout, GSourceFunc callback, gpointer data);

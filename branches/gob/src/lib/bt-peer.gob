@@ -20,14 +20,9 @@
 
 %h{
 
-#ifndef __TYPEDEF_BT_MANAGER__
-#define __TYPEDEF_BT_MANAGER__
-typedef struct _BtManager BtManager;
-#endif
-
-#ifndef __TYPEDEF_BT_TORRENT__
-#define __TYPEDEF_BT_TORRENT__
-typedef struct _BtTorrent BtTorrent;
+#ifndef __TYPEDEF_BT_PEER__
+#define __TYPEDEF_BT_PEER__
+typedef struct _BtPeer BtPeer;
 #endif
 
 #include <string.h>
@@ -67,7 +62,8 @@ enum BT_PEER_STATUS {
 	WAIT_HANDSHAKE, /* we have sent our handshake, so wait for his */
 	DISCONNECTING,  /* trying to disconnect */
 	DISCONNECTED,   /* disconnected */
-	IDLE_HAVE,      /* handshake is complete, and we should send a HAVE */
+	IDLE_BITFIELD,  /* handshake is complete, and we are waiting for bitfield */
+	IDLE_PEER_ID,   /* handshake is complete, and we are waiting for peer id */
 	IDLE            /* connected and idle */
 } Bt:Peer:Status;
 
@@ -96,9 +92,11 @@ class Bt:Peer from G:Object {
 
 	protected GSource     *keepalive_source = NULL;
 
-	protected gboolean    alive;
+	protected gboolean     alive;
 
 	protected BtPeerStatus status;
+
+	protected gboolean     got_bitfield = FALSE;
 
 	protected GString     *buffer = { g_string_sized_new (1024) }
 		destroy { g_string_free (VAR, TRUE); };
@@ -171,6 +169,8 @@ class Bt:Peer from G:Object {
 
 	/**
 	 * set_choking:
+	 * @self: the peer
+	 * @choking: if we are choking this peer
 	 *
 	 * Sets if we are choking the other peer.
 	 */
@@ -181,15 +181,19 @@ class Bt:Peer from G:Object {
 			return;
 
 		if (self->choking)
-			bt_peer_send_unchoke (self);
+			self_send_unchoke (self);
 		else
-			bt_peer_send_choke (self);
+			self_send_choke (self);
 
 		self->choking = choking;
+
+		g_object_notify (G_OBJECT (self), "choking");
 	}
 
 	/**
 	 * set_interesting:
+	 * @self: the peer
+	 * @interesting: if we are interested in this peer
 	 *
 	 * Sets if we are interested in the other peer, i.e. he is "interesting".
 	 */
@@ -200,17 +204,22 @@ class Bt:Peer from G:Object {
 			return;
 
 		if (self->interesting)
-			bt_peer_send_uninterested (self);
+			self_send_uninterested (self);
 		else
-			bt_peer_send_interested (self);
+			self_send_interested (self);
 
 		self->interesting = interesting;
+
+		g_object_notify (G_OBJECT (self), "interesting");
 	}
 
 	/**
 	 * get_choking:
+	 * @self: the peer
 	 *
-	 * Returns if we are choking the other peer or not.
+	 * Checks if we are choking the other peer or not.
+	 *
+	 * Returns: TRUE if we are choking the other peer
 	 */
 	public gboolean
 	get_choking (self)
@@ -220,8 +229,11 @@ class Bt:Peer from G:Object {
 
 	/**
 	 * get_interesting:
+	 * @self: the peer
 	 *
-	 * Returns if we are interested in the other peer.
+	 * Checks if we are interested in the other peer.
+	 *
+	 * Returns: TRUE if we are interested in the other peer
 	 */
 	public gboolean
 	get_interesting (self)
@@ -231,8 +243,11 @@ class Bt:Peer from G:Object {
 
 	/**
 	 * get_choked:
+	 * @self: the peer
 	 *
-	 * Returns whether or not the other peer is choking us.
+	 * Checks whether or not the other peer is choking us.
+	 *
+	 * Returns: TRUE if the other peer is choking us
 	 */
 	public gboolean
 	get_choked (self)
@@ -242,8 +257,11 @@ class Bt:Peer from G:Object {
 
 	/**
 	 * get_interested:
+	 * @self: the peer
 	 *
-	 * Returns if the peer is interested in us or not.
+	 * Checks if the peer is interested in us or not.
+	 *
+	 * Returns: TRUE if the peer is interested in us
 	 */
 	public gboolean
 	get_interested (self)
@@ -252,18 +270,11 @@ class Bt:Peer from G:Object {
 	}
 
 	/**
-	 * check:
+	 * send_keepalive:
+	 * @self: the peer
 	 *
-	 * Check the peers to see who we should optimistically unchoke or choke.
+	 * Sends a KEEPALIVE message to the peer.
 	 */
-	public gboolean
-	check (self)
-	{
-		/* TODO: add peer checking */
-
-		return FALSE;
-	}
-
 	private void
 	send_keepalive (self)
 	{
@@ -272,6 +283,12 @@ class Bt:Peer from G:Object {
 		gnet_conn_write (self->socket, buf, 4);
 	}
 
+	/**
+	 * send_choke:
+	 * @self: the peer
+	 *
+	 * Sends a CHOKE message to the peer.
+	 */
 	private void
 	send_choke (self)
 	{
@@ -280,6 +297,12 @@ class Bt:Peer from G:Object {
 		gnet_conn_write (self->socket, buf, 5);
 	}
 
+	/**
+	 * send_unchoke:
+	 * @self: the peer
+	 *
+	 * Sends an UNCHOKE message to the peer.
+	 */
 	private void
 	send_unchoke (self)
 	{
@@ -288,6 +311,12 @@ class Bt:Peer from G:Object {
 		gnet_conn_write (self->socket, buf, 5);
 	}
 
+	/**
+	 * send_interested:
+	 * @self: the peer
+	 *
+	 * Sends an INTERESTED message to the peer.
+	 */
 	private void
 	send_interested (self)
 	{
@@ -296,6 +325,12 @@ class Bt:Peer from G:Object {
 		gnet_conn_write (self->socket, buf, 5);
 	}
 
+	/**
+	 * send_uninterested:
+	 * @self: the peer
+	 *
+	 * Sends a NOT INTERESTED message to the peer.
+	 */
 	private void
 	send_uninterested (self)
 	{
@@ -328,7 +363,7 @@ class Bt:Peer from G:Object {
 		if (self->status == BT_PEER_STATUS_CONNECTED_SEND) {
 			self->status = BT_PEER_STATUS_WAIT_HANDSHAKE;
 		} else {
-			self->status = BT_PEER_STATUS_IDLE_HAVE;
+			self->status = BT_PEER_STATUS_IDLE_PEER_ID;
 		}
 
 		return;
@@ -337,7 +372,7 @@ class Bt:Peer from G:Object {
 	private void
 	send_have (self)
 	{
-
+		gnet_conn_write (self->socket, self->torrent->bitfield, (self->torrent->num_pieces + 7) / 8);
 	}
 
 	private gboolean
@@ -363,6 +398,8 @@ class Bt:Peer from G:Object {
 		}
 
 		g_debug ("valid handshake received");
+
+		self_handshake_completed (self);
 
 		return TRUE;
 	}
@@ -398,14 +435,14 @@ class Bt:Peer from G:Object {
 		self->pos -= 48;
 
 		if (self->pos > 0)
-			if (!bt_peer_parse_peer_id (self, error))
+			if (!self_parse_peer_id (self, error))
 				return FALSE;
 
 		if (self->status == BT_PEER_STATUS_CONNECTED_WAIT) {
 			self->status = BT_PEER_STATUS_SEND_HANDSHAKE;
-			bt_peer_send_handshake (self);
+			self_send_handshake (self);
 		} else {
-			self->status = BT_PEER_STATUS_IDLE_HAVE;
+			self->status = BT_PEER_STATUS_IDLE_BITFIELD;
 		}
 
 		return TRUE;
@@ -431,7 +468,7 @@ class Bt:Peer from G:Object {
 		switch (self->status) {
 		case BT_PEER_STATUS_CONNECTED_WAIT:
 		case BT_PEER_STATUS_WAIT_HANDSHAKE:
-			if (!bt_peer_parse_handshake (self, &error)) {
+			if (!self_parse_handshake (self, &error)) {
 				/* maybe we just need more data, so make sure an error occured */
 				if (error != NULL) {
 					if (g_error_matches (error, BT_ERROR, BT_ERROR_PEER_HANDSHAKE))
@@ -439,21 +476,22 @@ class Bt:Peer from G:Object {
 					else
 						g_warning (error->message);
 					g_clear_error (&error);
-					bt_idle_source_create (self->manager, (GSourceFunc) bt_peer_disconnect, self);
+					bt_idle_source_create (self->manager, (GSourceFunc) self_disconnect, self);
 					return;
 				}
 			}
 
 			break;
 
-		case BT_PEER_STATUS_IDLE_HAVE:
+		case BT_PEER_STATUS_IDLE_PEER_ID:
+		case BT_PEER_STATUS_IDLE_BITFIELD:
 			if (self->peer_id == NULL) {
-				if (!bt_peer_parse_peer_id (self, &error)) {
+				if (!self_parse_peer_id (self, &error)) {
 					/* maybe we just need more data, so make sure an error occured */
 					if (error != NULL) {
 						g_warning (error->message);
 						g_clear_error (&error);
-						bt_idle_source_create (self->manager, (GSourceFunc) bt_peer_disconnect, self);
+						bt_idle_source_create (self->manager, (GSourceFunc) self_disconnect, self);
 						return;
 					}
 				}
@@ -462,7 +500,7 @@ class Bt:Peer from G:Object {
 			if (!self->peer_id)
 				break;
 
-			bt_peer_send_have (self);
+			/* bt_peer_send_have (self); */
 
 			self->status = BT_PEER_STATUS_IDLE;
 
@@ -551,14 +589,13 @@ class Bt:Peer from G:Object {
 
 	/**
 	 * connected:
+	 * @self: the peer
 	 *
-	 * The default handler for when a peer becomes connected. We read the preferences
-	 * to see if we should try to connect with encryption or not.
 	 */
 	signal private last NONE (NONE) void
 	connected (self)
 	{
-		bt_peer_send_handshake (self);
+		self_send_handshake (self);
 
 		gnet_conn_read (self->socket);
 	}
@@ -622,6 +659,12 @@ class Bt:Peer from G:Object {
 		return;
 	}
 
+	/**
+	 * connect:
+	 * @self: the peer
+	 *
+	 * Connect to this peer. Handshaking will be done automatically.
+	 */
 	public void
 	connect (self)
 	{
@@ -629,6 +672,14 @@ class Bt:Peer from G:Object {
 		gnet_conn_connect (self->socket);
 	}
 
+	/**
+	 * disconnect:
+	 * @self: the peer
+	 *
+	 * Disconnect from this peer.
+	 *
+	 * Returns: FALSE always, so that this can be used as an idle callback
+	 */
 	public gboolean
 	disconnect (self)
 	{
@@ -650,11 +701,11 @@ class Bt:Peer from G:Object {
 		self = BT_PEER (object);
 
 		if (self->address != NULL) {
-			self->socket = gnet_conn_new_inetaddr (self->address, (GConnFunc) bt_peer_connection_callback, self);
+			self->socket = gnet_conn_new_inetaddr (self->address, (GConnFunc) self_connection_callback, self);
 			self->tcp_socket = self->socket->socket;
 			self->status = BT_PEER_STATUS_DISCONNECTED;
 		} else {
-			self->socket = gnet_conn_new_socket (self->tcp_socket, (GConnFunc) bt_peer_connection_callback, self);
+			self->socket = gnet_conn_new_socket (self->tcp_socket, (GConnFunc) self_connection_callback, self);
 			self->address = gnet_tcp_socket_get_remote_inetaddr (self->tcp_socket);
 			self->torrent = NULL;
 			self->status = BT_PEER_STATUS_CONNECTED_WAIT;
@@ -675,6 +726,21 @@ class Bt:Peer from G:Object {
 		G_OBJECT_CLASS (class)->constructor = self_constructor;
 	}
 
+	/**
+	 * new:
+	 * @manager: the manager
+	 * @torrent: the torrent that this peer is serving
+	 * @socket: a socket of an incoming connection
+	 * @address: the remote address of the peer
+	 *
+	 * This function creates a new peer. In the case of an incoming connection,
+	 * @socket should be set to the newly accept()ed socket, and @torrent and
+	 * @address should be NULL. If we got the address from e.g. a tracker and want
+	 * to make an outgoing connection, @torrent and @address should be set appropriately,
+	 * and @socket should be NULL.
+	 *
+	 * Returns: the new peer
+	 */
 	public BtPeer *
 	new (Bt:Manager *manager, Bt:Torrent *torrent, GTcpSocket *socket, GInetAddr *address)
 	{

@@ -255,6 +255,7 @@ open_dialog_run (gchar *filename)
 	GtkTreeViewColumn *col;
 	GtkCellRenderer *cell;
 	GtkTreeIter iter;
+	GtkTreeIter torrent_iter;
 	BtTorrent *torrent;
 	gchar *location;
 	gboolean valid;
@@ -328,6 +329,8 @@ open_dialog_run (gchar *filename)
 				g_free (location);
 				bt_torrent_add_peer (torrent, bt_peer_new (app.manager, torrent, NULL, gnet_inetaddr_new ("127.0.0.1", 6838)));
 				bt_manager_add_torrent (app.manager, torrent);
+				gtk_list_store_append (app.torrents_list, &torrent_iter);
+				gtk_list_store_set (app.torrents_list, &torrent_iter, 0, torrent, -1);
 				bt_torrent_start_downloading (torrent, NULL);
 				g_object_unref (torrent);
 				valid = gtk_tree_model_iter_next (GTK_TREE_MODEL (list), &iter);
