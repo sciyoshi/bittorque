@@ -70,14 +70,45 @@ create_torrent_toolbutton_clicked (GtkWidget *widget G_GNUC_UNUSED, gpointer dat
 	return;
 }
 
-/**
- * Log handler
- */
+static void
+torrents_status_cell_renderer_func (GtkTreeViewColumn *col G_GNUC_UNUSED, GtkCellRenderer *cell, GtkTreeModel *model, GtkTreeIter *iter, gpointer data G_GNUC_UNUSED)
+{
+	BtTorrent *torrent;
+
+	gtk_tree_model_get (model, iter, 0, &torrent, -1);
+
+	g_object_set (cell, "stock-id", "gtk-save", NULL);
+
+	g_object_unref (G_OBJECT (torrent));
+}
 
 static void
-log_handler (const gchar *domain, GLogLevelFlags flags, const gchar *message, gpointer data)
+torrents_name_cell_renderer_func (GtkTreeViewColumn *col G_GNUC_UNUSED, GtkCellRenderer *cell, GtkTreeModel *model, GtkTreeIter *iter, gpointer data G_GNUC_UNUSED)
 {
-	g_log_default_handler (domain, flags, message, data);
+	BtTorrent *torrent;
+
+	gtk_tree_model_get (model, iter, 0, &torrent, -1);
+
+	g_object_set (cell, "text", torrent->name, NULL);
+
+	g_object_unref (G_OBJECT (torrent));
+}
+
+static void
+torrents_size_cell_renderer_func (GtkTreeViewColumn *col G_GNUC_UNUSED, GtkCellRenderer *cell, GtkTreeModel *model, GtkTreeIter *iter, gpointer data G_GNUC_UNUSED)
+{
+	BtTorrent *torrent;
+	gchar *string;
+
+	gtk_tree_model_get (model, iter, 0, &torrent, -1);
+
+	string = bt_size_to_string (torrent->size);
+
+	g_object_set (cell, "text", string, NULL);
+
+	g_free (string);
+
+	g_object_unref (G_OBJECT (torrent));
 }
 
 /**
@@ -87,6 +118,9 @@ log_handler (const gchar *domain, GLogLevelFlags flags, const gchar *message, gp
 static void
 load_widgets (GladeXML *xml)
 {
+	GtkTreeViewColumn *col;
+	GtkCellRenderer *cell;
+
 	app.window = glade_xml_get_widget (xml, "window");
 
 	app.about_dialog = glade_xml_get_widget (xml, "about_dialog");
@@ -102,6 +136,48 @@ load_widgets (GladeXML *xml)
 	app.open_dialog_super_seeding_checkbox = glade_xml_get_widget (xml, "open_dialog_super_seeding_checkbox");
 	app.open_dialog_remove_button = glade_xml_get_widget (xml, "open_dialog_remove_button");
 	app.open_dialog_files_treeview = glade_xml_get_widget (xml, "open_dialog_files_treeview");
+
+	app.torrents_treeview = glade_xml_get_widget (xml, "torrents_treeview");
+	app.torrents_list = gtk_list_store_new (1, BT_TYPE_TORRENT);
+	gtk_tree_view_set_model (GTK_TREE_VIEW (app.torrents_treeview), GTK_TREE_MODEL (app.torrents_list));
+	g_object_unref (app.torrents_list);
+
+	col = gtk_tree_view_column_new ();
+	gtk_tree_view_column_set_title (col, _("Status"));
+
+	cell = gtk_cell_renderer_pixbuf_new ();
+	gtk_tree_view_column_pack_start (col, cell, TRUE);
+	gtk_tree_view_column_set_cell_data_func (col, cell, torrents_status_cell_renderer_func, NULL, NULL);
+	gtk_tree_view_append_column (GTK_TREE_VIEW (app.torrents_treeview), col);
+
+	col = gtk_tree_view_column_new ();
+	gtk_tree_view_column_set_title (col, _("Name"));
+	gtk_tree_view_column_set_resizable (col, TRUE);
+	gtk_tree_view_column_set_min_width (col, 200);
+
+	cell = gtk_cell_renderer_text_new ();
+	gtk_tree_view_column_pack_start (col, cell, TRUE);
+	gtk_tree_view_column_set_cell_data_func (col, cell, torrents_name_cell_renderer_func, NULL, NULL);
+	gtk_tree_view_append_column (GTK_TREE_VIEW (app.torrents_treeview), col);
+
+	col = gtk_tree_view_column_new ();
+	gtk_tree_view_column_set_title (col, _("Size"));
+	gtk_tree_view_column_set_resizable (col, TRUE);
+
+	cell = gtk_cell_renderer_text_new ();
+	gtk_tree_view_column_pack_start (col, cell, TRUE);
+	gtk_tree_view_column_set_cell_data_func (col, cell, torrents_size_cell_renderer_func, NULL, NULL);
+	gtk_tree_view_append_column (GTK_TREE_VIEW (app.torrents_treeview), col);
+}
+
+/**
+ * Log handler
+ */
+
+static void
+log_handler (const gchar *domain, GLogLevelFlags flags, const gchar *message, gpointer data)
+{
+	g_log_default_handler (domain, flags, message, data);
 }
 
 /**

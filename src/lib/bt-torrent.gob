@@ -20,15 +20,9 @@
 
 %h{
 
-/* typedefs for circular headers */
-#ifndef __TYPEDEF_BT_MANAGER__
-#define __TYPEDEF_BT_MANAGER__
-typedef struct _BtManager BtManager;
-#endif
-
-#ifndef __TYPEDEF_BT_PEER__
-#define __TYPEDEF_BT_PEER__
-typedef struct _BtPeer BtPeer;
+#ifndef __TYPEDEF_BT_TORRENT__
+#define __TYPEDEF_BT_TORRENT__
+typedef struct _BtTorrent BtTorrent;
 #endif
 
 #include "bt-manager.h"
@@ -163,7 +157,7 @@ class Bt:Torrent from G:Object {
 
 	protected guint      block_size;
 
-	protected gchar     *bitfield = NULL
+	public    gchar     *bitfield = NULL
 		destroywith g_free;
 
 	/* array of BtTorrentFile structures */
@@ -702,9 +696,9 @@ class Bt:Torrent from G:Object {
 	{
 		g_debug ("starting torrent download");
 
-		self->check_peers_source = bt_timeout_source_create (self->manager, 5000, (GSourceFunc) bt_torrent_check_peers, self);
+		self->check_peers_source = bt_timeout_source_create (self->manager, 5000, (GSourceFunc) self_check_peers, self);
 
-		self->announce_source = bt_idle_source_create (self->manager, (GSourceFunc) bt_torrent_announce, self);
+		self->announce_source = bt_idle_source_create (self->manager, (GSourceFunc) self_announce, self);
 
 		self->file_thread = g_thread_create ((GThreadFunc) self_file_thread, self, TRUE, error);
 

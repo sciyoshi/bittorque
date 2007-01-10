@@ -197,6 +197,13 @@ _bt_bencode_encode (BtBencode *data, GString **string)
 	return *string;
 }
 
+/**
+ * bt_bencode_error_quark:
+ *
+ * Gets the error quark for BEncoding errors. It is better to use #BT_BENCODE_ERROR instead.
+ *
+ * Returns: the quark
+ */
 GQuark
 bt_bencode_error_quark ()
 {
@@ -205,6 +212,7 @@ bt_bencode_error_quark ()
 
 /**
  * bt_bencode_destroy:
+ * @data: the data to free
  *
  * Frees all resources associated with the bencoded data.
  */
@@ -241,6 +249,8 @@ bt_bencode_destroy (BtBencode *data)
  * @error: a return location for errors
  *
  * Decodes the given string into a #BtBencode structure.
+ *
+ * Returns: the decoded BEncode structure
  */
 BtBencode *
 bt_bencode_decode (const gchar *buf, gsize len, GError **error)
@@ -266,6 +276,8 @@ bt_bencode_decode (const gchar *buf, gsize len, GError **error)
  * @data: the encoded structure
  *
  * Encodes the given #BtBencode structure into a GString
+ *
+ * Returns: a #GString with the BEncoded data
  */
 GString *
 bt_bencode_encode (BtBencode *data)

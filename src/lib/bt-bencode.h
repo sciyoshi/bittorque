@@ -65,7 +65,7 @@ G_BEGIN_DECLS
 /**
  * BtBencodeType:
  * @BT_BENCODE_TYPE_INT: indicates that the BEncoded integer can be accessed through value
- * @BT_BENCODE_TYPE_STRING: indicates that the BEncoded string can be accessed as a GString through the string element
+ * @BT_BENCODE_TYPE_STRING: indicates that the BEncoded string can be accessed as a #GString through the string element
  * @BT_BENCODE_TYPE_LIST: indicates that the BEncoded list can be accessed through the list element
  * @BT_BENCODE_TYPE_DICT: indicates that the BEncoded dictionary can be accessed through the dict element
  *
@@ -78,6 +78,12 @@ typedef enum {
 	BT_BENCODE_TYPE_DICT
 } BtBencodeType;
 
+/**
+ * BtBencodeError:
+ * @BT_BENCODE_ERROR_INVALID: generic encoding error
+ *
+ * Various error types for BEncoding and decoding operations
+ */
 typedef enum {
 	BT_BENCODE_ERROR_INVALID
 } BtBencodeError;
@@ -85,6 +91,10 @@ typedef enum {
 /**
  * BtBencode:
  * @type: a #BtBencodeType specifying the type of data
+ * @value: a #gint64 that holds the integer value, if type is %BT_BENCODE_TYPE_INT
+ * @string: a #GString that holds the string, if type is %BT_BENCODE_TYPE_STRING
+ * @list: a #GSList that holds a singly linked list of other #BtBencode structures, if type is %BT_BENCODE_TYPE_LIST
+ * @dict: a #GTree that holds string key -> #BtBencode mappings, if type is %BT_BENCODE_TYPE_DICT
  *
  * Represents BEncoded data.
  */
