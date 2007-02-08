@@ -1,3 +1,10 @@
+# Configuration file for building BitTorque
+
+# Embed Glade files and icons into the executable, to distribute a single file
 embed_data = False
+
+# Link statically to GNet, so that users don't need the CVS version
 static_gnet = False
+
+# Enable debugging symbols
 enable_debug = True
