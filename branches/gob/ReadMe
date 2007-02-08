@@ -9,23 +9,10 @@ while supporting many of the new protocol extensions.
 == Installation ==
 
 To build BitTorque from source, you will need basic development tools
-installed, as well as SCons, a Python-based build system. If running
-on a Debian-based system, running
-
-apt-get install scons
-
-should do the trick. Then type
-
-scons
-
+installed, as well as SCons, a Python-based build system. Run scons
 from the command line to build everything.
 
-
-== Contributing ==
-
-Code should be indented with (approximately)
-
-indent -kr -ts8 -i8 -pcs -l300
+You will also need the latest version of the GNet library.
 
 
 == Configuring ==
