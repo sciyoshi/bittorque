@@ -173,7 +173,7 @@ _bt_bencode_encode (BtBencode *data, GString **string)
 
 	switch (data->type) {
 	case BT_BENCODE_TYPE_INT:
-		g_string_append_printf (*string, "i%lde", data->value);
+		g_string_append_printf (*string, "i%" G_GINT64_MODIFIER "de", data->value);
 		break;
 
 	case BT_BENCODE_TYPE_STRING:
