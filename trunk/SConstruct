@@ -27,7 +27,7 @@ def check_pkg(context, name, version=None):
 ## gtk-doc support ##
 #####################
 
-
+# TODO
 
 
 #################
@@ -90,9 +90,15 @@ if not conf.CheckPKG('gnet-2.0'):
 env = conf.Finish()
 
 env.ParseConfig('pkg-config --cflags --libs glib-2.0 gobject-2.0 gthread-2.0')
-env.ParseConfig('pkg-config --cflags --libs gnet-2.0')
+env.ParseConfig('pkg-config --cflags gnet-2.0')
 env.Append(CPPDEFINES=['-DGNET_EXPERIMENTAL'])
-env.Append(CCFLAGS=['-Wall', '-Wextra', '-Werror', '-O0', '-g'])
+env.Append(CCFLAGS=['-Wall', '-Wextra', '-Werror', '-O0'])
+
+if not env['static_gnet']:
+	env.ParseConfig('pkg-config --libs gnet-2.0')
+
+if env['enable_debug']:
+	env.Append(CCFLAGS=['-g'])
 
 envgtk = env.Copy()
 envgtk.ParseConfig('pkg-config --cflags --libs gtk+-2.0 libglade-2.0')
@@ -102,6 +108,10 @@ envgtk.Append(CPPDEFINES=
 	 '-DBITTORQUE_WEBSITE=\\"www.bittorque.org\\"',
 	 '-DBITTORQUE_LOCALE_DIR=\\"/home/sciyoshi/Projects/bittorque/build/linux/locale\\"',
 	 '-DBITTORQUE_DATA_DIR=\\"/home/sciyoshi/Projects/bittorque/data\\"'])
+
+if env['embed_data']:
+	envgtk.Append(CPPDEFINES=['-DBITTORQUE_EMBED_DATA'])
+
 envgtk.Append(LINKFLAGS=['-export-dynamic'])
 envgtk.Append(LIBS=['bittorque'])
 envgtk.Append(LIBPATH=['#/src/lib'])

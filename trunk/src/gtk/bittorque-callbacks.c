@@ -19,6 +19,7 @@
  */
 
 #include "bittorque.h"
+#include "bittorque-ui.h"
 
 BT_EXPORT void
 on_preferences_menuitem_activate (GtkMenuItem *menuitem G_GNUC_UNUSED, gpointer data G_GNUC_UNUSED)
