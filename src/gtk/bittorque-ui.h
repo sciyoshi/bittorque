@@ -23,22 +23,33 @@
 
 #include <gtk/gtk.h>
 
-void torrents_status_cell_renderer_func (GtkTreeViewColumn *col,
-                                         GtkCellRenderer   *renderer,
-                                         GtkTreeModel      *model,
-                                         GtkTreeIter       *iter,
-                                         gpointer           data);
+void     torrents_status_cell_renderer_func (GtkTreeViewColumn *col,
+                                             GtkCellRenderer   *renderer,
+                                             GtkTreeModel      *model,
+                                             GtkTreeIter       *iter,
+                                             gpointer           data);
 
-void torrents_size_cell_renderer_func   (GtkTreeViewColumn *col,
-                                         GtkCellRenderer   *renderer,
-                                         GtkTreeModel      *model,
-                                         GtkTreeIter       *iter,
-                                         gpointer           data);
+void     torrents_size_cell_renderer_func   (GtkTreeViewColumn *col,
+                                             GtkCellRenderer   *renderer,
+                                             GtkTreeModel      *model,
+                                             GtkTreeIter       *iter,
+                                             gpointer           data);
 
-void torrents_name_cell_renderer_func   (GtkTreeViewColumn *col,
-                                         GtkCellRenderer   *renderer,
-                                         GtkTreeModel      *model,
-                                         GtkTreeIter       *iter,
-                                         gpointer           data);
+void     torrents_name_cell_renderer_func   (GtkTreeViewColumn *col,
+                                             GtkCellRenderer   *renderer,
+                                             GtkTreeModel      *model,
+                                             GtkTreeIter       *iter,
+                                             gpointer           data);
+
+gboolean torrents_view_selection_func (GtkTreeSelection *selection,
+                                       GtkTreeModel     *model,
+                                       GtkTreePath      *path,
+                                       gboolean          currently_selected,
+                                       gpointer          data);
+
+
+void bittorque_open_torrent ();
+
+void bittorque_open_preferences ();
 
 #endif

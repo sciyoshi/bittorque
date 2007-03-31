@@ -53,10 +53,6 @@ typedef struct {
 
 extern BittorqueApp bittorque;
 
-void bittorque_open_torrent ();
-
-void bittorque_open_preferences ();
-
 G_END_DECLS
 
 #endif

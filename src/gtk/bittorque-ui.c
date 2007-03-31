@@ -75,6 +75,28 @@ torrents_name_cell_renderer_func (GtkTreeViewColumn *column G_GNUC_UNUSED,
 	g_object_unref (G_OBJECT (torrent));
 }
 
+gboolean
+torrents_view_selection_func (GtkTreeSelection *selection G_GNUC_UNUSED,
+                              GtkTreeModel     *model,
+                              GtkTreePath      *path,
+                              gboolean          currently_selected,
+                              gpointer          data G_GNUC_UNUSED)
+{
+	GtkTreeIter iter;
+	BtTorrent *torrent;
+
+	if (gtk_tree_model_get_iter (model, &iter, path)) {
+		gtk_tree_model_get (model, &iter, 0, &torrent, -1);
+
+		if (!currently_selected)
+			g_print ("%s is going to be selected.\n", bt_torrent_get_name (torrent));
+		else
+			g_print ("%s is going to be unselected.\n", bt_torrent_get_name (torrent));
+    }
+
+	return TRUE;
+}
+
 void
 bittorque_open_torrent ()
 {

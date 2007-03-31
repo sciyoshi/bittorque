@@ -23,13 +23,24 @@
 #include "bittorque.h"
 #include "bittorque-ui.h"
 
+#ifdef BITTORQUE_EMBED_DATA
+# include "bittorque-glade.h"
+#endif
+
 static gchar *bittorque_private_dir = NULL;
+static guint  bittorque_local_port = 6881;
 
 static const GOptionEntry bittorque_option_entries[] = {
 	{"private-directory", 0, 0,
 	 G_OPTION_ARG_FILENAME,
 	 &bittorque_private_dir,
 	 N_("Use this directory for configuration and other data, useful if running from e.g. a USB stick"),
+	 NULL},
+	 
+	{"local-port", 0, 0,
+	 G_OPTION_ARG_INT,
+	 &bittorque_local_port,
+	 N_("Use this as the default port for incoming connections"),
 	 NULL},
 
 	{NULL, 0, 0, 0, NULL, NULL, NULL}
@@ -42,6 +53,7 @@ bittorque_load_widgets (GladeXML *xml)
 {
 	GtkTreeViewColumn *col;
 	GtkCellRenderer   *cell;
+	GtkTreeSelection  *selection;
 
 	bittorque.main_window = glade_xml_get_widget (xml, "main_window");
 	
@@ -78,6 +90,10 @@ bittorque_load_widgets (GladeXML *xml)
 	gtk_tree_view_column_pack_start (col, cell, TRUE);
 	gtk_tree_view_column_set_cell_data_func (col, cell, torrents_size_cell_renderer_func, NULL, NULL);
 	gtk_tree_view_append_column (GTK_TREE_VIEW (bittorque.torrents_treeview), col);
+	
+	selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (bittorque.torrents_treeview));
+	
+	gtk_tree_selection_set_select_function (selection, torrents_view_selection_func, NULL, NULL);
 }
 
 static void
@@ -136,7 +152,7 @@ main (int argc, char *argv[])
 #endif
 
 #ifdef BITTORQUE_EMBED_DATA
-	GdkPixdata      pixdata;
+	GdkPixdata      pixdata G_GNUC_UNUSED;
 #endif
 
 #ifdef ENABLE_NLS
@@ -192,7 +208,7 @@ main (int argc, char *argv[])
 	
 	g_object_unref (xml);
 	
-	bittorque.manager = g_object_new (BT_TYPE_MANAGER, "port", 5931, NULL);
+	bittorque.manager = g_object_new (BT_TYPE_MANAGER, "port", bittorque_local_port, NULL);
 
 	if (!bt_manager_start_accepting (bittorque.manager, &error)) {
 		g_warning ("could not start listening on port");
