@@ -35,6 +35,15 @@ typedef struct _BtPeerClass BtPeerClass;
 #include "bt-torrent.h"
 #include "bt-manager.h"
 
+typedef enum {
+	BT_PEER_STATUS_DISCONNECTED,
+	BT_PEER_STATUS_CONNECTED_OUT,
+	BT_PEER_STATUS_CONNECTED_IN,
+	BT_PEER_STATUS_WAIT_PEER_ID,
+	BT_PEER_STATUS_CONNECTED,
+	BT_PEER_STATUS_IDLE
+} BtPeerStatus;
+
 GType   bt_peer_get_type ();
 
 BtPeer *bt_peer_new_incoming (BtManager *manager, GTcpSocket *socket);
