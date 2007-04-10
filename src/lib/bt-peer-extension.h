@@ -1,5 +1,5 @@
 /**
- * bt-peer-protocol.h
+ * bt-peer-extension.h
  *
  * Copyright 2007 Samuel Cormier-Iijima <sciyoshi@gmail.com>
  *
@@ -18,13 +18,23 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __BT_PEER_PROTOCOL_H__
-#define __BT_PEER_PROTOCOL_H__
+#ifndef __BT_PEER_EXTENSION_H__
+#define __BT_PEER_EXTENSION_H__
 
-#include "bt-peer.h"
+#include <glib-object.h>
 
-void bt_peer_send_handshake (BtPeer *peer);
+#define BT_TYPE_PEER_EXTENSION            (bt_peer_extension_get_type ())
+#define BT_PEER_EXTENSION(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), BT_TYPE_PEER_EXTENSION, BtPeerExtension))
+#define BT_IS_PEER_EXTENSION(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), BT_TYPE_PEER_EXTENSION))
+#define BT_PEER_EXTENSION_GET_IFACE(inst) (G_TYPE_INSTANCE_GET_INTERFACE ((inst), BT_TYPE_PEER_EXTENSION, BtPeerExtensionIface))
 
-void bt_peer_data_received (BtPeer *peer, guint len, gpointer buf, gpointer data);
+typedef struct _BtPeerExtension      BtPeerExtension;
+typedef struct _BtPeerExtensionIface BtPeerExtensionIface;
+
+struct _BtPeerExtensionIface {
+	GTypeInterface parent;
+};
+
+GType bt_peer_extension_get_type ();
 
 #endif

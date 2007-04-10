@@ -39,39 +39,6 @@ enum {
 
 static guint bt_peer_signals[BT_PEER_NUM_SIGNALS] = {0, };
 
-struct _BtPeer {
-	GObject      parent;
-	
-	/* the BtManager for this peer */
-	BtManager   *manager;
-	
-	/* the torrent that this peer is serving */
-	BtTorrent   *torrent;
-	
-	/* the internet address of this peer */
-	GInetAddr   *address;
-	
-	/* the address as a string address:port */
-	gchar       *address_string;
-	
-	/* the network connection */
-	GConn       *socket;
-	
-	/* the actual tcp socket */
-	GTcpSocket  *tcp_socket;
-	
-	gboolean     peer_choking;
-	gboolean     peer_interested;
-	gboolean     interested;
-	gboolean     choking;
-	
-	BtPeerStatus status;
-};
-
-struct _BtPeerClass {
-	GObjectClass parent;
-};
-
 G_DEFINE_TYPE (BtPeer, bt_peer, G_TYPE_OBJECT)
 
 BtPeer *
@@ -84,6 +51,28 @@ BtPeer *
 bt_peer_new_outgoing (BtManager *manager, BtTorrent *torrent, GInetAddr *address)
 {
 	return BT_PEER (g_object_new (BT_TYPE_PEER, "manager", manager, "torrent", torrent, "address", address, NULL));
+}
+
+static gboolean
+bt_peer_disconnect_source (gpointer data)
+{
+	BtPeer *peer;
+
+	g_return_val_if_fail (BT_IS_PEER (data), FALSE);
+
+	peer = BT_PEER (data);
+
+	gnet_conn_delete (peer->socket);
+
+	return FALSE;
+}
+
+void
+bt_peer_disconnect (BtPeer *peer)
+{
+	g_return_if_fail (BT_IS_PEER (peer));
+
+	g_idle_add (bt_peer_disconnect_source, peer);
 }
 
 static void
@@ -107,11 +96,20 @@ bt_peer_connection_callback (GConn *connection G_GNUC_UNUSED, GConnEvent *event,
 		break;
 	
 	case GNET_CONN_READ:
-		
+		g_signal_emit (peer, bt_peer_signals[BT_PEER_SIGNAL_DATA_RECEIVED], 0, event->length, event->buffer);
 		break;
 	
 	default:
 		break;
+	}
+}
+
+static void
+bt_peer_connected (BtPeer *peer, gpointer data G_GNUC_UNUSED)
+{
+	if (peer->status == BT_PEER_STATUS_DISCONNECTED) {
+		bt_peer_send_handshake (peer);
+		peer->status = BT_PEER_STATUS_CONNECTED_OUT;
 	}
 }
 
@@ -207,6 +205,7 @@ bt_peer_constructor (GType type, guint num, GObjectConstructParam *properties)
 		self->address = gnet_tcp_socket_get_remote_inetaddr (self->tcp_socket);
 		self->torrent = NULL;
 		self->status = BT_PEER_STATUS_CONNECTED_IN;
+		gnet_tcp_socket_unref (self->tcp_socket);
 		gnet_conn_read (self->socket);
 	}
 
@@ -228,6 +227,8 @@ bt_peer_init (BtPeer *peer)
 	peer->torrent = NULL;
 	peer->socket = NULL;
 	peer->address = NULL;
+	peer->encryption_func = NULL;
+	peer->buffer = g_string_sized_new (1024);
 
 	return;
 }
@@ -303,11 +304,13 @@ bt_peer_class_init (BtPeerClass *peer_class)
 	 *
 	 * Emitted when this peer becomes connected.
 	 */
+	closure = g_cclosure_new (G_CALLBACK (bt_peer_connected), NULL, NULL);
+	
 	bt_peer_signals[BT_PEER_SIGNAL_CONNECTED] =
 		g_signal_newv ("connected",
 		               G_TYPE_FROM_CLASS (object_class),
 		               G_SIGNAL_RUN_LAST | G_SIGNAL_NO_RECURSE | G_SIGNAL_NO_HOOKS,
-		               NULL,
+		               closure,
 		               NULL,
 		               NULL,
 		               g_cclosure_marshal_VOID__VOID,

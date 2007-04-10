@@ -44,10 +44,49 @@ typedef enum {
 	BT_PEER_STATUS_IDLE
 } BtPeerStatus;
 
+struct _BtPeer {
+	GObject      parent;
+	
+	/* the BtManager for this peer */
+	BtManager   *manager;
+	
+	/* the torrent that this peer is serving */
+	BtTorrent   *torrent;
+	
+	/* the internet address of this peer */
+	GInetAddr   *address;
+	
+	/* the address as a string address:port */
+	gchar       *address_string;
+	
+	/* the network connection */
+	GConn       *socket;
+	
+	/* the actual tcp socket */
+	GTcpSocket  *tcp_socket;
+	
+	gboolean     peer_choking;
+	gboolean     peer_interested;
+	gboolean     interested;
+	gboolean     choking;
+	
+	GString     *buffer;
+	
+	void       (*encryption_func) (BtPeer *peer, guint len, gpointer buf);
+	
+	BtPeerStatus status;
+};
+
+struct _BtPeerClass {
+	GObjectClass parent;
+};
+
 GType   bt_peer_get_type ();
 
 BtPeer *bt_peer_new_incoming (BtManager *manager, GTcpSocket *socket);
 
 BtPeer *bt_peer_new_outgoing (BtManager *manager, BtTorrent *torrent, GInetAddr *inetaddr);
+
+void    bt_peer_disconnect (BtPeer *peer);
 
 #endif
