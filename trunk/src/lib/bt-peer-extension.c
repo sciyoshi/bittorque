@@ -1,5 +1,5 @@
 /**
- * bt-peer-protocol.h
+ * bt-peer-extension.c
  *
  * Copyright 2007 Samuel Cormier-Iijima <sciyoshi@gmail.com>
  *
@@ -18,13 +18,30 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __BT_PEER_PROTOCOL_H__
-#define __BT_PEER_PROTOCOL_H__
+#include "bt-peer-extension.h"
 
-#include "bt-peer.h"
+GType
+bt_peer_extension_get_type ()
+{
+	static GType type = 0;
 
-void bt_peer_send_handshake (BtPeer *peer);
+	if (!type) {
+		const GTypeInfo info = {
+			sizeof (BtPeerExtensionIface),
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			0,
+			0,
+			NULL,
+			NULL
+		};
+		
+		type = g_type_register_static (G_TYPE_INTERFACE, "BtPeerExtension", &info, 0);
+	}
 
-void bt_peer_data_received (BtPeer *peer, guint len, gpointer buf, gpointer data);
+	return type;
+}
 
-#endif
