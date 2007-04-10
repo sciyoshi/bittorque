@@ -1,6 +1,7 @@
 Import('*')
 
-env.Command('bittorque-glade.h', ['#/data/bittorque.glade'], 'python tools/variablize.py $SOURCE $TARGET bittorque_glade')
+if env['embed_data']:
+	env.Command('bittorque-glade.h', ['#/data/bittorque.glade'], 'python tools/variablize.py $SOURCE $TARGET bittorque_glade')
 
 if env['static_gnet']:
 	envgtk.Append(_LIBFLAGS=' -Xlinker /usr/local/lib/libgnet-2.0.a')

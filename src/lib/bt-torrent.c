@@ -59,23 +59,32 @@ struct _BtTorrent {
 	
 	/* infohash as a 40-byte human-readable string */
 	gchar     *infohash_string;
-	
+
+	/* tracker to announce to in case of single tracker, or currently-announcing tracker */	
 	gchar     *announce;
 	
+	/* list of tiers of trackers - multitracker extension */
 	GSList    *announce_list;
 	
+	/* number of pieces in the torrent */
 	guint      num_pieces;
 	
+	/* percent download completion */
 	gdouble    completion;
 	
+	/* number of blocks */
 	guint      num_blocks;
 	
+	/* block request size */
 	guint      block_size;
 	
+	/* bitfield of pieces that we have */
 	gchar     *bitfield;
 	
+	/* an array of files in this torrent */
 	GArray    *files;
 	
+	/* a list of peers */
 	GList     *peers;
 
 	/* tracker */
@@ -164,7 +173,7 @@ bt_torrent_announce_http_parse_response (BtTorrent *torrent, gchar *buf, gsize l
 			
 			bt_torrent_add_peer (torrent, peer);
 			
-			//g_object_unref (peer);
+			g_object_unref (peer);
 			gnet_inetaddr_unref (address);
 		}
 	}

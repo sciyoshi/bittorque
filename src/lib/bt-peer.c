@@ -19,6 +19,7 @@
  */
 
 #include "bt-peer.h"
+#include "bt-peer-protocol.h"
 #include "bt-torrent.h"
 #include "bt-utils.h"
 
@@ -31,25 +32,40 @@ enum {
 
 enum {
 	BT_PEER_SIGNAL_CONNECTED,
+	BT_PEER_SIGNAL_HANDSHAKE_COMPLETE,
+	BT_PEER_SIGNAL_DATA_RECEIVED,
 	BT_PEER_NUM_SIGNALS
 };
 
 static guint bt_peer_signals[BT_PEER_NUM_SIGNALS] = {0, };
 
 struct _BtPeer {
-	GObject     parent;
+	GObject      parent;
 	
-	BtManager  *manager;
+	/* the BtManager for this peer */
+	BtManager   *manager;
 	
-	BtTorrent  *torrent;
+	/* the torrent that this peer is serving */
+	BtTorrent   *torrent;
 	
-	GInetAddr  *address;
+	/* the internet address of this peer */
+	GInetAddr   *address;
 	
-	gchar      *address_string;
+	/* the address as a string address:port */
+	gchar       *address_string;
 	
-	GConn      *socket;
+	/* the network connection */
+	GConn       *socket;
 	
-	GTcpSocket *tcp_socket;
+	/* the actual tcp socket */
+	GTcpSocket  *tcp_socket;
+	
+	gboolean     peer_choking;
+	gboolean     peer_interested;
+	gboolean     interested;
+	gboolean     choking;
+	
+	BtPeerStatus status;
 };
 
 struct _BtPeerClass {
@@ -71,9 +87,32 @@ bt_peer_new_outgoing (BtManager *manager, BtTorrent *torrent, GInetAddr *address
 }
 
 static void
-bt_peer_connection_callback (GConn *connection G_GNUC_UNUSED, GConnEvent *event G_GNUC_UNUSED, gpointer data G_GNUC_UNUSED)
+bt_peer_connection_callback (GConn *connection G_GNUC_UNUSED, GConnEvent *event, gpointer data)
 {
-	gnet_conn_read (connection);
+	BtPeer *peer;
+	
+	g_return_if_fail (BT_IS_PEER (data));
+	
+	peer = BT_PEER (data);
+	
+	switch (event->type) {
+	case GNET_CONN_CONNECT:
+		g_signal_emit (peer, bt_peer_signals[BT_PEER_SIGNAL_CONNECTED], 0);
+		break;
+	
+	case GNET_CONN_CLOSE:
+		break;
+	
+	case GNET_CONN_ERROR:
+		break;
+	
+	case GNET_CONN_READ:
+		
+		break;
+	
+	default:
+		break;
+	}
 }
 
 static void
@@ -162,10 +201,12 @@ bt_peer_constructor (GType type, guint num, GObjectConstructParam *properties)
 
 	if (self->address != NULL) {
 		self->socket = gnet_conn_new_inetaddr (self->address, (GConnFunc) bt_peer_connection_callback, self);
+		self->status = BT_PEER_STATUS_DISCONNECTED;
 	} else {
 		self->socket = gnet_conn_new_socket (self->tcp_socket, (GConnFunc) bt_peer_connection_callback, self);
 		self->address = gnet_tcp_socket_get_remote_inetaddr (self->tcp_socket);
 		self->torrent = NULL;
+		self->status = BT_PEER_STATUS_CONNECTED_IN;
 		gnet_conn_read (self->socket);
 	}
 
@@ -196,7 +237,9 @@ bt_peer_class_init (BtPeerClass *peer_class)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (peer_class);
 	GParamSpec *pspec;
-
+	GClosure *closure;
+	GType params[2];
+	
 	object_class->dispose = bt_peer_dispose;
 	object_class->finalize = bt_peer_finalize;
 	object_class->constructor = bt_peer_constructor;
@@ -271,6 +314,45 @@ bt_peer_class_init (BtPeerClass *peer_class)
 		               G_TYPE_NONE,
 		               0,
 		               NULL);
+
+	/**
+	 * BtPeer::handshake-complete:
+	 *
+	 * Emitted when the bittorrent handshake has been completed.
+	 */
+	bt_peer_signals[BT_PEER_SIGNAL_HANDSHAKE_COMPLETE] =
+		g_signal_newv ("handshake-complete",
+		               G_TYPE_FROM_CLASS (object_class),
+		               G_SIGNAL_RUN_LAST | G_SIGNAL_NO_RECURSE | G_SIGNAL_NO_HOOKS,
+		               NULL,
+		               NULL,
+		               NULL,
+		               g_cclosure_marshal_VOID__VOID,
+		               G_TYPE_NONE,
+		               0,
+		               NULL);
+
+	/**
+	 * BtPeer::data-received:
+	 *
+	 * Emitted when data is received from this peer.
+	 */
+	closure = g_cclosure_new (G_CALLBACK (bt_peer_data_received), NULL, NULL);
+	
+	params[0] = G_TYPE_UINT;
+	params[1] = G_TYPE_POINTER;
+	
+	bt_peer_signals[BT_PEER_SIGNAL_DATA_RECEIVED] =
+		g_signal_newv ("data-received",
+		               G_TYPE_FROM_CLASS (object_class),
+		               G_SIGNAL_RUN_LAST | G_SIGNAL_NO_RECURSE | G_SIGNAL_NO_HOOKS,
+		               closure,
+		               NULL,
+		               NULL,
+		               g_cclosure_marshal_VOID__UINT_POINTER,
+		               G_TYPE_NONE,
+		               2,
+		               params);
 
 	return;
 }
