@@ -75,6 +75,8 @@ bt_manager_new_connection (BtManager *manager, GTcpSocket *socket, gpointer data
 static void
 bt_manager_emit_new_connection (GTcpSocket *server G_GNUC_UNUSED, GTcpSocket *client, BtManager *manager)
 {
+	g_return_if_fail (BT_IS_MANAGER (manager));
+
 	g_signal_emit (manager, bt_manager_signals[BT_MANAGER_SIGNAL_NEW_CONNECTION], 0, client);
 
 	return;
@@ -90,7 +92,34 @@ bt_manager_emit_new_connection (GTcpSocket *server G_GNUC_UNUSED, GTcpSocket *cl
 void
 bt_manager_add_torrent (BtManager *manager, BtTorrent *torrent)
 {
+	g_return_if_fail (BT_IS_MANAGER (manager));
+
 	g_hash_table_insert (manager->torrents, g_strdup (bt_torrent_get_infohash_string (torrent)), g_object_ref (torrent));
+}
+
+/**
+ * bt_manager_get_torrent:
+ * @manager: the manager
+ * @infohash: the torrent's infohash to add
+ *
+ * Get a torrent from the manager with the specified infohash, or NULL.
+ */
+BtTorrent *
+bt_manager_get_torrent (BtManager *manager, gchar *infohash)
+{
+	BtTorrent *torrent;
+	gchar *infohash_string;
+
+	g_return_val_if_fail (BT_IS_MANAGER (manager), NULL);
+	g_return_val_if_fail (infohash != NULL, NULL);
+
+	infohash_string = bt_hash_to_string (infohash);
+
+	torrent = (BtTorrent *) g_hash_table_lookup (manager->torrents, infohash_string);
+	
+	g_free (infohash_string);
+	
+	return torrent;
 }
 
 /**
