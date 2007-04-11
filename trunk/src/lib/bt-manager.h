@@ -40,6 +40,8 @@ void             bt_manager_add_torrent (BtManager *manager, BtTorrent *torrent)
 
 void             bt_manager_remove_torrent (BtManager *manager);
 
+BtTorrent       *bt_manager_get_torrent (BtManager *manager, gchar *id);
+
 void             bt_manager_stop_accepting (BtManager *manager);
 
 gboolean         bt_manager_start_accepting (BtManager *manager, GError **error);

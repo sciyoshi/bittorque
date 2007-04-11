@@ -64,6 +64,8 @@ struct _BtPeer {
 	
 	/* the actual tcp socket */
 	GTcpSocket  *tcp_socket;
+
+	gchar       *peer_id;
 	
 	gboolean     peer_choking;
 	gboolean     peer_interested;

@@ -42,10 +42,7 @@ bt_peer_write_data (BtPeer *peer, guint len, gpointer buf)
 void
 bt_peer_send_handshake (BtPeer *peer)
 {
-	gchar *buf;
-	gint len;
-	
-	buf = g_malloc (68);
+	gchar buf[68];
 	
 	buf[0] = (gchar) 19;
 	
@@ -57,12 +54,31 @@ bt_peer_send_handshake (BtPeer *peer)
 	
 	g_memmove (buf + 48, bt_manager_get_peer_id (peer->manager), 20);
 
-	bt_peer_write_data (peer, (guint) len, buf);
+	bt_peer_write_data (peer, (guint) 68, buf);
+	
+	g_debug ("sent handshake for %s", peer->address_string);
+}
+
+static BtPeerDataStatus
+bt_peer_check_peer_id (BtPeer *peer)
+{
+	if (peer->buffer->len < 20)
+		return BT_PEER_DATA_STATUS_NEED_MORE;
+	
+	peer->peer_id = g_memdup (peer->buffer->str, 20);
+	
+	g_debug ("got peer id, we are connected");
+	
+	return BT_PEER_DATA_STATUS_INVALID;
 }
 
 static BtPeerDataStatus
 bt_peer_check_handshake (BtPeer *peer)
 {
+	gchar infohash[21];
+
+	g_return_val_if_fail (BT_IS_PEER (peer), BT_PEER_DATA_STATUS_INVALID);
+
 	if (peer->buffer->len < 1)
 		return BT_PEER_DATA_STATUS_NEED_MORE;
 	
@@ -75,6 +91,26 @@ bt_peer_check_handshake (BtPeer *peer)
 	if (memcmp (peer->buffer->str + 1, "BitTorrent protocol", 19) != 0)
 		return BT_PEER_DATA_STATUS_INVALID;
 	
+	if (peer->buffer->len < 48)
+		return BT_PEER_DATA_STATUS_NEED_MORE;
+	
+	g_memmove (infohash, peer->buffer->str + 28, 20);
+	
+	infohash[20] = (gchar) 0;
+	
+	peer->torrent = bt_manager_get_torrent (peer->manager, infohash);
+	
+	if (!peer->torrent) {
+		g_debug ("connection received for invalid torrent: %s", infohash);
+		return BT_PEER_DATA_STATUS_INVALID;
+	}
+	
+	g_debug ("connection received for torrent %s", bt_torrent_get_name (peer->torrent));
+	
+	g_object_ref (peer->torrent);
+	
+	bt_torrent_add_peer (peer->torrent, peer);
+	
 	return BT_PEER_DATA_STATUS_SUCCESS;
 }
 
@@ -82,6 +118,8 @@ void
 bt_peer_data_received (BtPeer *peer, guint len, gpointer buf, gpointer data G_GNUC_UNUSED)
 {
 	g_return_if_fail (BT_IS_PEER (peer));
+
+	g_debug ("data received for %s", peer->address_string);
 
 	g_string_append_len (peer->buffer, buf, (gssize) len);
 
@@ -98,13 +136,51 @@ bt_peer_data_received (BtPeer *peer, guint len, gpointer buf, gpointer data G_GN
 			break;
 		
 		default:
+			g_string_erase (peer->buffer, 0, 48);
+			bt_peer_send_handshake (peer);
+			peer->status = BT_PEER_STATUS_WAIT_PEER_ID;
 			break;
 		}
 		
 		break;
 	
 	case BT_PEER_STATUS_CONNECTED_OUT:
+		switch (bt_peer_check_handshake (peer)) {
+		case BT_PEER_DATA_STATUS_NEED_MORE:
+			gnet_conn_read (peer->socket);
+			break;
+
+		case BT_PEER_DATA_STATUS_INVALID:
+			// TODO: try encryption here, possibly?
+			bt_peer_disconnect (peer);
+			break;
+		
+		default:
+			g_debug ("received valid handshake, waiting for peerid");
+		
+			g_string_erase (peer->buffer, 0, 48);
+			
+			switch (bt_peer_check_peer_id (peer)) {
+			case BT_PEER_DATA_STATUS_NEED_MORE:
+				gnet_conn_read (peer->socket);
+				break;
+
+			case BT_PEER_DATA_STATUS_INVALID:
+				bt_peer_disconnect (peer);
+				break;
+		
+			default:
+				peer->status = BT_PEER_STATUS_CONNECTED;
+				break;
+			}
+
+			break;
+		}
+		
 		break;
+
+	case BT_PEER_STATUS_WAIT_PEER_ID:
+		
 	
 	default:
 		break;

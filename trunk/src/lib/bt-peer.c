@@ -90,9 +90,11 @@ bt_peer_connection_callback (GConn *connection G_GNUC_UNUSED, GConnEvent *event,
 		break;
 	
 	case GNET_CONN_CLOSE:
+		g_debug ("connection closed for %s", peer->address_string);
 		break;
 	
 	case GNET_CONN_ERROR:
+		g_debug ("connection error for %s", peer->address_string);
 		break;
 	
 	case GNET_CONN_READ:
@@ -107,9 +109,14 @@ bt_peer_connection_callback (GConn *connection G_GNUC_UNUSED, GConnEvent *event,
 static void
 bt_peer_connected (BtPeer *peer, gpointer data G_GNUC_UNUSED)
 {
+	g_return_if_fail (BT_IS_PEER (peer));
+
+	g_debug ("peer became connected for %s", peer->address_string);
+
 	if (peer->status == BT_PEER_STATUS_DISCONNECTED) {
 		bt_peer_send_handshake (peer);
 		peer->status = BT_PEER_STATUS_CONNECTED_OUT;
+		gnet_conn_read (peer->socket);
 	}
 }
 
@@ -200,6 +207,7 @@ bt_peer_constructor (GType type, guint num, GObjectConstructParam *properties)
 	if (self->address != NULL) {
 		self->socket = gnet_conn_new_inetaddr (self->address, (GConnFunc) bt_peer_connection_callback, self);
 		self->status = BT_PEER_STATUS_DISCONNECTED;
+		gnet_conn_connect (self->socket);
 	} else {
 		self->socket = gnet_conn_new_socket (self->tcp_socket, (GConnFunc) bt_peer_connection_callback, self);
 		self->address = gnet_tcp_socket_get_remote_inetaddr (self->tcp_socket);
