@@ -25,7 +25,12 @@
 
 #ifdef BITTORQUE_EMBED_DATA
 # include "bittorque-glade.h"
+# include "bittorque-icon-16.h"
+# include "bittorque-icon-24.h"
+# include "bittorque-icon-64.h"
 #endif
+
+#include "bittorque-default-config.h"
 
 static gchar *bittorque_private_dir = NULL;
 static guint  bittorque_local_port = 6881;
@@ -36,7 +41,7 @@ static const GOptionEntry bittorque_option_entries[] = {
 	 &bittorque_private_dir,
 	 N_("Use this directory for configuration and other data, useful if running from e.g. a USB stick"),
 	 NULL},
-	 
+
 	{"local-port", 0, 0,
 	 G_OPTION_ARG_INT,
 	 &bittorque_local_port,
@@ -56,9 +61,9 @@ bittorque_load_widgets (GladeXML *xml)
 	GtkTreeSelection  *selection;
 
 	bittorque.main_window = glade_xml_get_widget (xml, "main_window");
-	
+
 	bittorque.preferences_dialog = glade_xml_get_widget (xml, "preferences_dialog");
-	
+
 	bittorque.torrents_treeview = glade_xml_get_widget (xml, "torrents_treeview");
 	bittorque.torrents_list = gtk_list_store_new (1, BT_TYPE_TORRENT);
 	gtk_tree_view_set_model (GTK_TREE_VIEW (bittorque.torrents_treeview), GTK_TREE_MODEL (bittorque.torrents_list));
@@ -90,9 +95,9 @@ bittorque_load_widgets (GladeXML *xml)
 	gtk_tree_view_column_pack_start (col, cell, TRUE);
 	gtk_tree_view_column_set_cell_data_func (col, cell, torrents_size_cell_renderer_func, NULL, NULL);
 	gtk_tree_view_append_column (GTK_TREE_VIEW (bittorque.torrents_treeview), col);
-	
+
 	selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (bittorque.torrents_treeview));
-	
+
 	gtk_tree_selection_set_select_function (selection, torrents_view_selection_func, NULL, NULL);
 }
 
@@ -102,10 +107,78 @@ bittorque_log_handler (const gchar *domain, GLogLevelFlags flags, const gchar *m
 	g_log_default_handler (domain, flags, message, data);
 }
 
+static GKeyFile *
+bittorque_load_default_config ()
+{
+	GKeyFile *config = g_key_file_new ();
+
+	g_key_file_load_from_data (config, bittorque_default_config, bittorque_default_config_len, G_KEY_FILE_NONE, NULL);
+
+	return config;
+}
+
+static GKeyFile *
+bittorque_open_config_file (gchar **filename)
+{
+	GKeyFile *config = g_key_file_new ();
+	GError *error = NULL;
+	gchar *config_file = NULL;
+	gboolean loaded = FALSE;
+
+	if (bittorque_private_dir != NULL) {
+		config_file = g_build_filename (bittorque_private_dir, "bittorque.cfg", NULL);
+
+		if (!g_key_file_load_from_file (config, config_file, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, &error)) {
+			if (error->domain == G_KEY_FILE_ERROR)
+				g_message (_("Error loading configuration from private directory, skipping: %s"), error->message);
+
+			g_clear_error (&error);
+
+			g_free (config_file);
+		} else {
+			if (filename != NULL)
+				*filename = config_file;
+
+			loaded = TRUE;
+		}
+	}
+
+	if (!loaded) {
+		config_file = g_build_filename (g_get_user_config_dir (), "bittorque", "bittorque.cfg", NULL);
+
+		if (!g_key_file_load_from_file (config, config_file, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, &error)) {
+			if (error->domain == G_KEY_FILE_ERROR)
+				g_message (_("Error loading configuration from user directory: %s"), error->message);
+
+			g_clear_error (&error);
+
+			g_free (config_file);
+		} else {
+			if (filename != NULL)
+				*filename = config_file;
+
+			loaded = TRUE;
+		}
+	}
+
+	if (!loaded) {
+		g_message (_("Using default configuration,,,"));
+
+		if (filename != NULL) {
+			if (bittorque_private_dir != NULL)
+				*filename = g_build_filename (bittorque_private_dir, "bittorque.cfg", NULL);
+			else
+				*filename = g_build_filename (g_get_user_config_dir (), "bittorque", "bittorque.cfg", NULL);
+		}
+	}
+
+	return config;
+}
+
 static GladeXML *
 bittorque_open_glade_file ()
 {
-	GladeXML *xml;
+	GladeXML *xml = NULL;
 
 #ifndef BITTORQUE_EMBED_DATA
 	gchar    *glade_file = NULL;
@@ -117,18 +190,16 @@ bittorque_open_glade_file ()
 			xml = glade_xml_new (glade_file, NULL, NULL);
 		g_free (glade_file);
 	}
-	
+
 	if (!xml) {
 		glade_file = g_build_filename (BITTORQUE_DATA_DIR, "bittorque.glade", NULL);
-		
+
 		if (g_file_test (glade_file, G_FILE_TEST_EXISTS))
 			xml = glade_xml_new (glade_file, NULL, NULL);
-		else if (g_file_test ("bittorque.glade", G_FILE_TEST_EXISTS))
-			xml = glade_xml_new ("bittorque.glade", NULL, NULL);
-		
+
 		g_free (glade_file);
 	}
-	
+
 	if (!xml) {
 		g_printerr (_("Couldn't find bittorque.glade - check your installation!\n"));
 		return NULL;
@@ -155,15 +226,15 @@ main (int argc, char *argv[])
 	GdkPixdata      pixdata G_GNUC_UNUSED;
 #endif
 
+	/* apparently this has to be first */
+	if (!g_thread_supported ())
+		g_thread_init (NULL);
+
 #ifdef ENABLE_NLS
 	bindtextdomain (GETTEXT_PACKAGE, BITTORQUE_LOCALE_DIR);
 	bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
 	textdomain (GETTEXT_PACKAGE);
 #endif
-
-	/* apparently this has to be first */
-	if (!g_thread_supported ())
-		g_thread_init (NULL);
 
 	/* register our own log handler for all logs */
 	g_log_set_handler (NULL, G_LOG_LEVEL_MASK | G_LOG_FLAG_RECURSION | G_LOG_FLAG_FATAL, bittorque_log_handler, NULL);
@@ -198,16 +269,20 @@ main (int argc, char *argv[])
 	/* set the locale */
 	gtk_set_locale ();
 
+	bittorque.config = bittorque_open_config_file (&(bittorque.config_file));
+
+	bittorque.default_config = bittorque_load_default_config ();
+
 	xml = bittorque_open_glade_file ();
-	
+
 	g_return_val_if_fail (xml != NULL, 1);
 
 	bittorque_load_widgets (xml);
-	
+
 	glade_xml_signal_autoconnect (xml);
-	
+
 	g_object_unref (xml);
-	
+
 	bittorque.manager = g_object_new (BT_TYPE_MANAGER, "port", bittorque_local_port, NULL);
 
 	if (!bt_manager_start_accepting (bittorque.manager, &error)) {
@@ -219,6 +294,6 @@ main (int argc, char *argv[])
 	gtk_main ();
 
 	g_object_unref (bittorque.manager);
-	
+
 	return 0;
 }
