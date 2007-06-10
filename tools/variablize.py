@@ -1,21 +1,47 @@
+#!/usr/bin/python
+
 import sys
+import getopt
 
-if len(sys.argv) < 3 or len(sys.argv) > 4:
-	sys.exit('Usage: ' + sys.argv[0] + ' [input-file] [output-file] <variable-name>')
+try:
+	opts, args = getopt.getopt(sys.argv[1:], 'sl', ['static', 'len'])
+except getopt.GetoptError:
+	sys.exit('Usage: ' + sys.argv[0] + ' <options> [input-file] [output-file] [variable-name]')
 
-input = open(sys.argv[1]).read()
-output = open(sys.argv[2], 'w')
+static = False
+variable_len = False
 
-if len(sys.argv) == 4:
-	variable = sys.argv[3]
+for opt, arg in opts:
+	if opt in ('-s', '--static'):
+		static = True
+	elif opt in ('-l', '--len'):
+		variable_len = True
+
+if len(args) < 3:
+	sys.exit('Usage: ' + sys.argv[0] + ' <options> [input-file] [output-file] [variable-name]')
+
+input = open(args[0]).read()
+
+if args[1] == '-':
+	output = sys.stdout
 else:
-	variable = sys.argv[2] + '_data'
+	output = open(args[1], 'w')
 
-output.write('char ' + variable + '[] = {')
+variable = args[2]
+
+if static:
+	static = 'static '
+else:
+	static = ''
+
+output.write(static + 'char ' + variable + '[] = {')
 
 for char in input[:-1]:
 	output.write(hex(ord(char)) + ', ')
 
 output.write(hex(ord(input[-1])) + '};\n')
+
+if variable_len:
+	output.write(static + 'gsize ' + variable + '_len = ' + str(len(input)) + ';\n')
 
 output.close()

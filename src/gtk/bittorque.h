@@ -40,15 +40,23 @@ G_BEGIN_DECLS
 #endif
 
 typedef struct {
-	GtkWidget *main_window;
-	
-	GtkWidget    *preferences_dialog;
-	GtkWidget    *preferences_treeview;
-	
-	GtkWidget    *torrents_treeview;
-	GtkListStore *torrents_list;
-	
-	BtManager    *manager;
+	GtkWidget     *main_window;
+
+	GtkWidget     *preferences_dialog;
+	GtkWidget     *preferences_treeview;
+
+	GtkWidget     *torrents_treeview;
+	GtkListStore  *torrents_list;
+
+	GtkStatusIcon *status_icon;
+
+	BtManager     *manager;
+
+	GKeyFile      *config;
+
+	gchar         *config_file;
+
+	GKeyFile      *default_config;
 } BittorqueApp;
 
 extern BittorqueApp bittorque;
