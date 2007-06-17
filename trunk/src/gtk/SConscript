@@ -1,17 +1,24 @@
 Import('*')
 
 if env['embed_data']:
-	env.Command('bittorque-glade.h', ['#/data/bittorque.glade'], 'tools/variablize.py --static $SOURCE $TARGET bittorque_glade')
+	env.Command('bittorque-glade.h', ['#/data/bittorque.glade'], 'python tools/variablize.py --static $SOURCE $TARGET bittorque_glade')
 	env.Command('bittorque-icon-16.h', ['#/data/icons/bittorque16.png'], 'gdk-pixbuf-csource --name=bittorque_icon_16 $SOURCE > $TARGET')
 	env.Command('bittorque-icon-24.h', ['#/data/icons/bittorque24.png'], 'gdk-pixbuf-csource --name=bittorque_icon_24 $SOURCE > $TARGET')
 	env.Command('bittorque-icon-64.h', ['#/data/icons/bittorque64.png'], 'gdk-pixbuf-csource --name=bittorque_icon_64 $SOURCE > $TARGET')
 
-env.Command('bittorque-default-config.h', ['#/data/bittorque.cfg.default'], 'tools/variablize.py --static --len $SOURCE $TARGET bittorque_default_config')
+env.Command('bittorque-default-config.h', ['#/data/bittorque.cfg.default'], 'python tools/variablize.py --static --len $SOURCE $TARGET bittorque_default_config')
 
 if env['static_gnet']:
 	envgtk.Append(_LIBFLAGS=' -Xlinker /usr/local/lib/libgnet-2.0.a')
 
+env.Command('egg-marshallers.c', ['egg-marshallers.list'], 'glib-genmarshal --body --prefix=_egg_marshal $SOURCE > $TARGET')
+env.Command('egg-marshallers.h', ['egg-marshallers.list'], 'glib-genmarshal --header --prefix=_egg_marshal $SOURCE > $TARGET')
+
 envgtk.Program('bittorque',
 	['bittorque.c',
 	 'bittorque-ui.c',
-	 'bittorque-callbacks.c'])
+	 'bittorque-callbacks.c',
+	 'egg-editable-toolbar.c',
+	 'egg-toolbar-editor.c',
+	 'egg-toolbars-model.c',
+	 'egg-marshallers.c'])

@@ -289,6 +289,12 @@ main (int argc, char *argv[])
 		g_warning ("could not start listening on port");
 	}
 
+#ifndef BITTORQUE_EMBED_DATA
+
+#else
+	
+#endif
+
 	gtk_widget_show_all (bittorque.main_window);
 
 	gtk_main ();
