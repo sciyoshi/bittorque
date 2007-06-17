@@ -92,7 +92,7 @@ env = conf.Finish()
 env.ParseConfig('pkg-config --cflags --libs glib-2.0 gobject-2.0 gthread-2.0')
 env.ParseConfig('pkg-config --cflags gnet-2.0')
 env.Append(CPPDEFINES=['-DGNET_EXPERIMENTAL'])
-env.Append(CCFLAGS=['-Wall', '-Wextra', '-Werror', '-O0'])
+env.Append(CCFLAGS=['-Wall', '-Wextra', '-Werror', '-Wno-unused-parameter', '-O2'])
 
 if not env['static_gnet']:
 	env.ParseConfig('pkg-config --libs gnet-2.0')
@@ -116,6 +116,9 @@ envgtk.Append(LINKFLAGS=['-export-dynamic'])
 envgtk.Append(LIBS=['bittorque'])
 envgtk.Append(LIBPATH=['#/src/lib'])
 envgtk.Append(CPPPATH=['#/src/lib'])
+
+#env['CC'] = 'i586-mingw32msvc-gcc'
+#envgtk['CC'] = 'i586-mingw32msvc-gcc'
 
 Export('env', 'envgtk')
 
