@@ -44,7 +44,7 @@ opts.AddOptions(
 	BoolOption('static_gnet', 'Statically link the GNet library', 1),
 	PathOption('data_dir', 'Path to search for images and other data', Dir('#/data').abspath))
 
-env = Environment(options=opts, tools=['mingw', 'default'], ENV=os.environ)
+env = Environment(options=opts, tools=['mingw', 'disttar', 'default'], toolpath=['tools'], ENV=os.environ)
 
 env.Help(opts.GenerateHelpText(env))
 
@@ -106,8 +106,8 @@ envgtk.Append(CPPDEFINES=
 	['-DENABLE_NLS',
 	 '-DGETTEXT_PACKAGE=\\"bittorque\\"',
 	 '-DBITTORQUE_WEBSITE=\\"www.bittorque.org\\"',
-	 '-DBITTORQUE_LOCALE_DIR=\\"/home/sciyoshi/Projects/bittorque/build/linux/locale\\"',
-	 '-DBITTORQUE_DATA_DIR=\\"/home/sciyoshi/Projects/bittorque/data\\"'])
+	 '-DBITTORQUE_LOCALE_DIR=\\"/home/sciyoshi/Projects/bittorque/build/linux/locale/\\"',
+	 '-DBITTORQUE_DATA_DIR=\\"/home/sciyoshi/Projects/bittorque/data/\\"'])
 
 if env['embed_data']:
 	envgtk.Append(CPPDEFINES=['-DBITTORQUE_EMBED_DATA'])
@@ -123,3 +123,59 @@ envgtk.Append(CPPPATH=['#/src/lib'])
 Export('env', 'envgtk')
 
 SConscript(['src/SConscript', 'doc/SConscript'])
+
+"""
+env['DISTTAR_FORMAT'] = 'bz2'
+
+env['DISTTAR_EXCLUDEDIRS'] = ['.svn', '.scons']
+env['DISTTAR_EXCLUDEEXTS'] = ['.pyc']
+
+env.DistTar('dist/bittorque', [
+	'Authors',
+	'Copying',
+	'Install',
+	'ReadMe',
+	'SConfig',
+	'SConstruct',
+	env.Dir('data'),
+	env.Dir('doc'),
+	'src/SConscript',
+	'src/gtk/SConscript',
+	'src/gtk/bittorque.c',
+	'src/gtk/bittorque.h',
+	'src/gtk/bittorque-callbacks.c',
+	'src/gtk/bittorque-ui.c',
+	'src/gtk/bittorque-ui.h',
+	'src/gtk/egg-editable-toolbar.c',
+	'src/gtk/egg-editable-toolbar.h',
+	'src/gtk/egg-marshallers.list',
+	'src/gtk/egg-toolbar-editor.c',
+	'src/gtk/egg-toolbar-editor.h',
+	'src/gtk/egg-toolbars-model.c',
+	'src/gtk/egg-toolbars-model.h',
+	'src/lib/SConscript',
+	'src/lib/bt-bencode.c',
+	'src/lib/bt-bencode.h',
+	'src/lib/bt-manager.c',
+	'src/lib/bt-manager.h',
+	'src/lib/bt-peer.c',
+	'src/lib/bt-peer.h',
+	'src/lib/bt-peer-encryption.c',
+	'src/lib/bt-peer-encryption.h',
+	'src/lib/bt-peer-extension.c',
+	'src/lib/bt-peer-extension.h',
+	'src/lib/bt-peer-protocol.c',
+	'src/lib/bt-peer-protocol.h',
+	'src/lib/bt-torrent.c',
+	'src/lib/bt-torrent.h',
+	'src/lib/bt-torrent-file.c',
+	'src/lib/bt-torrent-file.h',
+	'src/lib/bt-utils.c',
+	'src/lib/bt-utils.h',
+	'src/lib/rc4.c',
+	'src/lib/rc4.h',
+	'src/lib/sha1.c',
+	'src/lib/sha1.h',
+	env.Dir('tests'),
+	env.Dir('tools')])
+"""

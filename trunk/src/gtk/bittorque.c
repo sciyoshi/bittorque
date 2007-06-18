@@ -192,12 +192,8 @@ bittorque_open_glade_file ()
 	}
 
 	if (!xml) {
-		glade_file = g_build_filename (BITTORQUE_DATA_DIR, "bittorque.glade", NULL);
-
-		if (g_file_test (glade_file, G_FILE_TEST_EXISTS))
-			xml = glade_xml_new (glade_file, NULL, NULL);
-
-		g_free (glade_file);
+		if (g_file_test (BITTORQUE_DATA_DIR "bittorque.glade", G_FILE_TEST_EXISTS))
+			xml = glade_xml_new (BITTORQUE_DATA_DIR "bittorque.glade", NULL, NULL);
 	}
 
 	if (!xml) {
@@ -209,6 +205,34 @@ bittorque_open_glade_file ()
 #endif
 
 	return xml;
+}
+
+GdkPixbuf *
+bittorque_icon_from_size (gint size, GError **error)
+{
+	g_return_val_if_fail (size > 0, NULL);
+
+#ifdef BITTORQUE_EMBED_DATA
+	if (size <= 16)
+		return gdk_pixbuf_new_from_inline (-1, bittorque_icon_16, FALSE, error);
+	else if (size <= 24)
+		return gdk_pixbuf_new_from_inline (-1, bittorque_icon_24, FALSE, error);
+	else
+		return gdk_pixbuf_new_from_inline (-1, bittorque_icon_64, FALSE, error);
+#else
+	if (bittorque_private_dir != NULL) {
+		g_warning ("NOT IMPLEMENTED: Loading icon from private directory");
+	}
+
+	if (size <= 16)
+		return gdk_pixbuf_new_from_file (BITTORQUE_DATA_DIR "icons" G_DIR_SEPARATOR_S "bittorque16.png", error);
+	else if (size <= 24)
+		return gdk_pixbuf_new_from_file (BITTORQUE_DATA_DIR "icons" G_DIR_SEPARATOR_S "bittorque24.png", error);
+	else
+		return gdk_pixbuf_new_from_file (BITTORQUE_DATA_DIR "icons" G_DIR_SEPARATOR_S "bittorque64.png", error);
+#endif
+
+	return NULL;
 }
 
 int
@@ -289,11 +313,13 @@ main (int argc, char *argv[])
 		g_warning ("could not start listening on port");
 	}
 
-#ifndef BITTORQUE_EMBED_DATA
+	bittorque.status_icon = gtk_status_icon_new ();
 
-#else
-	
-#endif
+	gtk_status_icon_set_from_pixbuf (bittorque.status_icon, bittorque_icon_from_size (gtk_status_icon_get_size (bittorque.status_icon), NULL));
+
+	gtk_status_icon_set_visible (bittorque.status_icon, TRUE);
+
+	gtk_status_icon_set_tooltip (bittorque.status_icon, "BitTorque");
 
 	gtk_widget_show_all (bittorque.main_window);
 

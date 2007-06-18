@@ -1,5 +1,6 @@
 import os
 import sys
+import stat
 
 def disttar_emitter(target, source, env):
 	source, origsource = [], source
@@ -8,6 +9,8 @@ def disttar_emitter(target, source, env):
 	excludedirs = env.Dictionary().get('DISTTAR_EXCLUDEDIRS', [])
 
 	for item in origsource:
+		if stat.S_ISREG(os.stat(str(item))[stat.ST_MODE]):
+			source.append(str(item))
 		for root, dirs, files in os.walk(str(item)):
 			if root in source:
 				source.remove(root)
