@@ -671,7 +671,7 @@ static void toolbar_visibility_refresh (EggEditableToolbar * etoolbar)
 		string = g_string_sized_new (0);
 		n_items = egg_toolbars_model_n_items (priv->model, i);
 		for (k = 0, j = 0; j < n_items; j++) {
-			GValue value = {.g_type = 0 };
+			GValue value = {0, {{0,}, }};
 			GtkAction *action;
 			const char *name;
 

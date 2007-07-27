@@ -22,7 +22,6 @@
 #include "egg-toolbars-model.h"
 #include "egg-marshallers.h"
 
-#include <unistd.h>
 #include <string.h>
 #include <libxml/tree.h>
 #include <gdk/gdkproperty.h>

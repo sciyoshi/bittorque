@@ -370,6 +370,8 @@ bt_torrent_parse_file (BtTorrent *torrent, const gchar *filename, GError **error
 
 	torrent->announce = g_strdup (announce->string->str);
 
+	g_debug ("torrent announce url: %s", torrent->announce);
+
 	if (announce_list) {
 		/* the announce-list is a list of lists of strings (doubly nested) */
 		GSList *i;
@@ -428,13 +430,11 @@ bt_torrent_parse_file (BtTorrent *torrent, const gchar *filename, GError **error
 
 	torrent->piece_length = (guint32) piece_length->value;
 
-	torrent->size = length->value;
-
 	if (length) {
 		/* this torrent is one single file */
-		torrent->size = length->value;
+		BtTorrentFile file = {g_strdup (torrent->name), length->value, 0, 0};
 
-		BtTorrentFile file = {g_strdup (torrent->name), torrent->size, 0, 0};
+		torrent->size = length->value;
 
 		g_array_append_val (torrent->files, file);
 	}
@@ -629,7 +629,11 @@ bt_torrent_add_peer (BtTorrent *torrent, BtPeer *peer)
 BtTorrent *
 bt_torrent_new (BtManager *manager, gchar *filename, GError **error)
 {
-	GObject *torrent = g_object_new (BT_TYPE_TORRENT, "manager", manager, NULL);
+	GObject *torrent;
+	
+	g_return_val_if_fail (BT_IS_MANAGER (manager), NULL);
+	
+	torrent = g_object_new (BT_TYPE_TORRENT, "manager", manager, NULL);
 	
 	bt_torrent_parse_file (BT_TORRENT (torrent), filename, error);
 	

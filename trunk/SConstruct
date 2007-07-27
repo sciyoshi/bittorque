@@ -79,8 +79,8 @@ if not conf.CheckPKG('gtk+-2.0', '2.10.0'):
 	print 'gtk+-2.0 >= 2.10.0 not found'
 	Exit(1)
 
-if not conf.CheckPKG('libglade-2.0', '2.6.0'):
-	print 'libglade-2.0 >= 2.6.0 not found'
+if not conf.CheckPKG('libglade-2.0', '2.4.0'):
+	print 'libglade-2.0 >= 2.4.0 not found'
 	Exit(1)
 
 if not conf.CheckPKG('gnet-2.0'):
@@ -91,34 +91,50 @@ env = conf.Finish()
 
 env.ParseConfig('pkg-config --cflags --libs glib-2.0 gobject-2.0 gthread-2.0')
 env.ParseConfig('pkg-config --cflags gnet-2.0')
-env.Append(CPPDEFINES=['-DGNET_EXPERIMENTAL'])
-env.Append(CCFLAGS=['-Wall', '-Wextra', '-Werror', '-Wno-unused-parameter', '-O2'])
+env.Append(CPPDEFINES=['GNET_EXPERIMENTAL'])
+
+if env['CC'] == 'gcc':
+	env.Append(CCFLAGS=['-Wall', '-Wextra', '-Werror', '-Wno-unused-parameter', '-O2'])
 
 if not env['static_gnet']:
 	env.ParseConfig('pkg-config --libs gnet-2.0')
 
 if env['enable_debug']:
-	env.Append(CCFLAGS=['-g'])
+	if env['CC'] == 'gcc':
+		env.Append(CCFLAGS=['-g'])
+	else:
+		env.Append(LINKFLAGS=['/DEBUG', '/PDB:bittorque.pdb'])
 
 envgtk = env.Copy()
 envgtk.ParseConfig('pkg-config --cflags --libs gtk+-2.0 libglade-2.0')
 envgtk.Append(CPPDEFINES=
-	['-DENABLE_NLS',
-	 '-DGETTEXT_PACKAGE=\\"bittorque\\"',
-	 '-DBITTORQUE_WEBSITE=\\"www.bittorque.org\\"',
-	 '-DBITTORQUE_LOCALE_DIR=\\"/home/sciyoshi/Projects/bittorque/build/linux/locale/\\"',
-	 '-DBITTORQUE_DATA_DIR=\\"/home/sciyoshi/Projects/bittorque/data/\\"'])
+	['ENABLE_NLS',
+	 'GETTEXT_PACKAGE=\\"bittorque\\"',
+	 'BITTORQUE_WEBSITE=\\"www.bittorque.org\\"',
+	 'BITTORQUE_LOCALE_DIR=\\"/home/sciyoshi/Projects/bittorque/build/linux/locale/\\"',
+	 'BITTORQUE_DATA_DIR=\\"/home/sciyoshi/Projects/bittorque/data/\\"'])
 
 if env['embed_data']:
-	envgtk.Append(CPPDEFINES=['-DBITTORQUE_EMBED_DATA'])
+	envgtk.Append(CPPDEFINES=['BITTORQUE_EMBED_DATA'])
 
 envgtk.Append(LINKFLAGS=['-export-dynamic'])
-envgtk.Append(LIBS=['bittorque'])
+envgtk['LIBS'].insert(0, 'bittorque')
 envgtk.Append(LIBPATH=['#/src/lib'])
 envgtk.Append(CPPPATH=['#/src/lib'])
 
+
+if env['CC'] == 'gcc':
+	env['CCFLAGS'].remove('/nologo')
+	envgtk['CCFLAGS'].remove('/nologo')
+
 #env['CC'] = 'i586-mingw32msvc-gcc'
 #envgtk['CC'] = 'i586-mingw32msvc-gcc'
+
+print env['PLATFORM']
+
+if env['PLATFORM'] == 'win32':
+	if 'm' in envgtk['LIBS']:
+		envgtk['LIBS'].remove('m')
 
 Export('env', 'envgtk')
 

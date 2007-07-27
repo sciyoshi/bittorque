@@ -9,7 +9,10 @@ if env['embed_data']:
 env.Command('bittorque-default-config.h', ['#/data/bittorque.cfg.default'], 'python tools/variablize.py --static --len $SOURCE $TARGET bittorque_default_config')
 
 if env['static_gnet']:
-	envgtk.Append(_LIBFLAGS=' -Xlinker /usr/local/lib/libgnet-2.0.a')
+	if env['CC'] == 'gcc':
+		envgtk.Append(_LIBFLAGS=' -Xlinker C:/GTK/lib/libgnet-2.0.dll.a')
+	else:
+		envgtk.Append(LIBS='libgnet-2.0-0')
 
 env.Command('egg-marshallers.c', ['egg-marshallers.list'], 'glib-genmarshal --body --prefix=_egg_marshal $SOURCE > $TARGET')
 env.Command('egg-marshallers.h', ['egg-marshallers.list'], 'glib-genmarshal --header --prefix=_egg_marshal $SOURCE > $TARGET')

@@ -354,11 +354,11 @@ static GtkWidget *editor_create_item_from_name (EggToolbarEditor * editor, const
 
 		icon = _egg_editable_toolbar_new_separator_image ();
 		short_label = _("Separator");
-		item_name = strdup (name);
+		item_name = g_strdup (name);
 		collate_key = g_utf8_collate_key (short_label, -1);
 		item = editor_create_item (editor, GTK_IMAGE (icon), short_label, drag_action);
 	} else {
-		GValue value = {.g_type = 0 };
+		GValue value = {0, {{0,}, }};
 		GtkAction *action;
 		GtkWidget *icon;
 
