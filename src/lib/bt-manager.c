@@ -201,7 +201,7 @@ void
 bt_manager_set_port (BtManager *manager, gushort port)
 {
 	GError *error = NULL;
-	gboolean running;
+	gboolean running = FALSE;
 
 	g_return_if_fail (BT_IS_MANAGER (manager));
 

@@ -19,7 +19,6 @@
  */
 
 #include <sys/types.h>
-#include <unistd.h>
 #include <errno.h>
 #include <string.h>
 
@@ -126,20 +125,16 @@ gchar *
 bt_create_peer_id ()
 {
 	SHA1Context sha;
-	pid_t pid;
 	GTimeVal t;
 	gchar tmp[20];
 	gchar *id;
 	guint i;
-
-	pid = getpid ();
 
 	id = g_malloc (21);
 
 	g_snprintf (id, 21, "-TO%02d%02d-", 0, 1);
 
 	sha1_init (&sha);
-	sha1_update (&sha, (gchar *) &pid, sizeof (pid_t));
 
 	g_get_current_time (&t);
 	sha1_update (&sha, (gchar *) &t, sizeof (GTimeVal));
