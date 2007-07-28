@@ -124,13 +124,13 @@ envgtk.Append(CPPPATH=['#/src/lib'])
 
 
 if env['CC'] == 'gcc':
-	env['CCFLAGS'].remove('/nologo')
-	envgtk['CCFLAGS'].remove('/nologo')
+	if '/nologo' in env['CCFLAGS']:
+		env['CCFLAGS'].remove('/nologo')
+	if '/nologo' in envgtk['CCFLAGS']:
+		envgtk['CCFLAGS'].remove('/nologo')
 
 #env['CC'] = 'i586-mingw32msvc-gcc'
 #envgtk['CC'] = 'i586-mingw32msvc-gcc'
-
-print env['PLATFORM']
 
 if env['PLATFORM'] == 'win32':
 	if 'm' in envgtk['LIBS']:

@@ -1,3 +1,8 @@
+# Enable debugging symbols
 enable_debug = 1
-embed_data = 1
+
+# Embed data such as icons and Glade files into the executable
+embed_data = 0
+
+# Link to GNet statically
 static_gnet = 1
