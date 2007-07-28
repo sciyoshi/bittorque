@@ -4,6 +4,7 @@
 	Version="8.00"
 	Name="bittorque"
 	ProjectGUID="{31E8B71D-D7F2-42B1-AD14-21A5C5E11D16}"
+	RootNamespace="bittorque"
 	Keyword="MakeFileProj"
 	>
 	<Platforms>
@@ -27,7 +28,7 @@
 				CleanCommandLine="set PATH=C:\GTK\bin;C:\Python25\;%PATH%&#x0D;&#x0A;set PKG_CONFIG_PATH=C:\GTK\lib\pkgconfig&#x0D;&#x0A;python C:\Python25\Scripts\scons -u .. -c"
 				Output="..\src\gtk\bittorque.exe"
 				PreprocessorDefinitions="WIN32;_DEBUG"
-				IncludeSearchPath=""
+				IncludeSearchPath="&quot;C:\GTK\include\gnet-2.0&quot;;&quot;C:\GTK\include\gtk-2.0&quot;;&quot;C:\GTK\include\glib-2.0\&quot;;C:\GTK\include"
 				ForcedIncludes=""
 				AssemblySearchPath=""
 				ForcedUsingAssemblies=""
@@ -217,6 +218,30 @@
 					>
 				</File>
 			</Filter>
+		</Filter>
+		<Filter
+			Name="data"
+			>
+			<File
+				RelativePath="..\data\bittorque.cfg.default"
+				>
+			</File>
+			<File
+				RelativePath="..\data\bittorque.glade"
+				>
+			</File>
+		</Filter>
+		<Filter
+			Name="tools"
+			>
+			<File
+				RelativePath="..\tools\disttar.py"
+				>
+			</File>
+			<File
+				RelativePath="..\tools\variablize.py"
+				>
+			</File>
 		</Filter>
 		<File
 			RelativePath="..\Authors"

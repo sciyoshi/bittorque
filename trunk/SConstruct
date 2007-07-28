@@ -109,10 +109,10 @@ envgtk = env.Copy()
 envgtk.ParseConfig('pkg-config --cflags --libs gtk+-2.0 libglade-2.0')
 envgtk.Append(CPPDEFINES=
 	['ENABLE_NLS',
-	 'GETTEXT_PACKAGE=\\"bittorque\\"',
-	 'BITTORQUE_WEBSITE=\\"www.bittorque.org\\"',
-	 'BITTORQUE_LOCALE_DIR=\\"/home/sciyoshi/Projects/bittorque/build/linux/locale/\\"',
-	 'BITTORQUE_DATA_DIR=\\"/home/sciyoshi/Projects/bittorque/data/\\"'])
+	 r'GETTEXT_PACKAGE=\"bittorque\"',
+	 r'BITTORQUE_WEBSITE=\"www.bittorque.org\"',
+	 r'BITTORQUE_LOCALE_DIR=\"C:\\MSYS\\home\\Yoshi\\Projects\\bittorque\\build\\locale\\\\\"',
+	 r'BITTORQUE_DATA_DIR=\"C:\\MSYS\\home\\Yoshi\\Projects\\bittorque\\data\\\\\"'])
 
 if env['embed_data']:
 	envgtk.Append(CPPDEFINES=['BITTORQUE_EMBED_DATA'])
