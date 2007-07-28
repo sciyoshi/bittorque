@@ -10,7 +10,7 @@ env.Command('bittorque-default-config.h', ['#/data/bittorque.cfg.default'], 'pyt
 
 if env['static_gnet']:
 	if env['CC'] == 'gcc':
-		envgtk.Append(_LIBFLAGS=' -Xlinker C:/GTK/lib/libgnet-2.0.dll.a')
+		envgtk.Append(_LIBFLAGS=' -Xlinker /usr/local/lib/libgnet-2.0.a')
 	else:
 		envgtk.Append(LIBS='libgnet-2.0-0')
 

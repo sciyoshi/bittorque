@@ -25,6 +25,7 @@
 #include <string.h>
 #include <libxml/tree.h>
 #include <gdk/gdkproperty.h>
+#include <glib/gstdio.h>
 
 static void egg_toolbars_model_class_init (EggToolbarsModelClass * klass);
 static void egg_toolbars_model_init (EggToolbarsModel * model);
@@ -184,7 +185,7 @@ static gboolean safe_save_xml (const char *xml_file, xmlDocPtr doc)
 	}
 
 	if (old_exist) {
-		if (unlink (old_file) < 0) {
+		if (g_unlink (old_file) < 0) {
 			g_warning ("Failed to delete old file %s", old_file);
 		}
 	}
