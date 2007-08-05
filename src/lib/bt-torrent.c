@@ -153,28 +153,62 @@ bt_torrent_announce_http_parse_response (BtTorrent *torrent, gchar *buf, gsize l
 
 	peers = bt_bencode_lookup (response, "peers");
 
-	if (peers && peers->type == BT_BENCODE_TYPE_STRING) {
-		int num, i;
+	if (peers) {
+		if (peers->type == BT_BENCODE_TYPE_STRING) {
+			int num, i;
 
-		if (peers->string->len % 6 != 0)
-			g_warning ("invalid peers string");
+			if (peers->string->len % 6 != 0)
+				g_warning ("invalid peers string");
 
-		num = peers->string->len / 6;
+			num = peers->string->len / 6;
 
-		for (i = 0; i < num; i++) {
-			GInetAddr *address;
-			BtPeer *peer;
-			
-			address = gnet_inetaddr_new_bytes (peers->string->str + i * 6, 4);
-			
-			gnet_inetaddr_set_port (address, g_ntohs (*((gushort *) (peers->string->str + i * 6 + 4))));
-			
-			peer = bt_peer_new_outgoing (torrent->manager, torrent, address);
-			
-			bt_torrent_add_peer (torrent, peer);
-			
-			g_object_unref (peer);
-			gnet_inetaddr_unref (address);
+			for (i = 0; i < num; i++) {
+				GInetAddr *address;
+				BtPeer *peer;
+				
+				address = gnet_inetaddr_new_bytes (peers->string->str + i * 6, 4);
+				
+				gnet_inetaddr_set_port (address, g_ntohs (*((gushort *) (peers->string->str + i * 6 + 4))));
+				
+				peer = bt_peer_new_outgoing (torrent->manager, torrent, address);
+				
+				bt_torrent_add_peer (torrent, peer);
+				
+				g_object_unref (peer);
+				gnet_inetaddr_unref (address);
+			}
+		} else if (peers->type == BT_BENCODE_TYPE_LIST) {
+			// if tracker didn't support compact=1
+			GSList *i;
+			for (i = peers->list; i != NULL; i = i->next) {
+				GInetAddr *address;
+				BtPeer *peer;
+				BtBencode *j, *ip, *port;
+
+				j = bt_bencode_slitem (i);
+				if (j->type != BT_BENCODE_TYPE_DICT)
+					continue;
+
+				ip = bt_bencode_lookup (j, "ip");
+				if (!ip || ip->type != BT_BENCODE_TYPE_STRING)
+					continue;
+
+				port = bt_bencode_lookup (j, "port");
+				if (!port || port->type != BT_BENCODE_TYPE_INT)
+					continue;
+
+				// FIXME: blocks if ip is a dns name
+				address = gnet_inetaddr_new (ip->string->str, 4);
+
+				gnet_inetaddr_set_port (address, port->value);
+
+				peer = bt_peer_new_outgoing (torrent->manager, torrent, address);
+				
+				bt_torrent_add_peer (torrent, peer);
+				
+				g_object_unref (peer);
+				gnet_inetaddr_unref (address);
+			}
 		}
 	}
 
@@ -276,7 +310,7 @@ bt_torrent_tracker_announce_single (BtTorrent *torrent, const gchar *tracker)
 	/* build query */
 	tmp = bt_url_encode (torrent->infohash, 20);
 
-	query = g_strdup_printf ("%s?info_hash=%s&peer_id=%s&port=%d&uploaded=%d&downloaded=%d&left=%" G_GINT64_FORMAT "&compact=1&event=%s&numwant=%d",
+	query = g_strdup_printf ("%s?info_hash=%s&peer_id=%s&port=%d&uploaded=%d&downloaded=%d&left=%" G_GINT64_FORMAT "&compact=1&no_peer_id=1&event=%s&numwant=%d",
 	                         torrent->announce,
 	                         tmp,
 	                         bt_manager_get_peer_id (torrent->manager),
@@ -569,6 +603,70 @@ bt_torrent_get_size (BtTorrent *torrent)
 	g_return_val_if_fail (BT_IS_TORRENT (torrent), 0);
 
 	return torrent->size;
+}
+
+/**
+ * bt_torrent_get_num_pieces:
+ * @torrent: the torrent
+ *
+ * Get the number of pieces for the torrent.
+ *
+ * Returns: the number of pieces for the torrent as a guint.
+ */
+guint
+bt_torrent_get_num_pieces (BtTorrent *torrent)
+{
+	g_return_val_if_fail (BT_IS_TORRENT (torrent), 0);
+
+	return torrent->num_pieces;
+}
+
+/**
+ * bt_torrent_get_piece_length:
+ * @torrent: the torrent
+ *
+ * Get the piece length for the torrent.
+ *
+ * Returns: the piece length for the torrent as a guint32.
+ */
+guint32
+bt_torrent_get_piece_length (BtTorrent *torrent)
+{
+	g_return_val_if_fail (BT_IS_TORRENT (torrent), 0);
+
+	return torrent->piece_length;
+}
+
+/**
+ * bt_torrent_get_num_blocks:
+ * @torrent: the torrent
+ *
+ * Get the number of blocks for the torrent.
+ *
+ * Returns: the number of blocks for the torrent as a guint.
+ */
+guint
+bt_torrent_get_num_blocks (BtTorrent *torrent)
+{
+	g_return_val_if_fail (BT_IS_TORRENT (torrent), 0);
+
+	return torrent->num_blocks;
+}
+
+/**
+ * bt_torrent_get_block_size:
+ * @torrent: the torrent
+ *
+ * Get the block size for the torrent.
+ *
+ * Returns: the block size for the torrent as a guint.
+ */
+guint
+bt_torrent_get_block_size (BtTorrent *torrent)
+{
+	g_return_val_if_fail (BT_IS_TORRENT (torrent), 0);
+
+	return torrent->block_size;
 }
 
 /**
