@@ -45,6 +45,14 @@ const gchar     *bt_torrent_get_name (BtTorrent *torrent);
 
 guint64          bt_torrent_get_size (BtTorrent *torrent);
 
+guint            bt_torrent_get_num_pieces (BtTorrent *torrent);
+
+guint32          bt_torrent_get_piece_length (BtTorrent *torrent);
+
+guint            bt_torrent_get_num_blocks (BtTorrent *torrent);
+
+guint            bt_torrent_get_block_size (BtTorrent *torrent);
+
 void             bt_torrent_start (BtTorrent *torrent);
 
 void             bt_torrent_stop (BtTorrent *torrent);
