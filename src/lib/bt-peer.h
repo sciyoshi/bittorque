@@ -71,7 +71,9 @@ struct _BtPeer {
 	gboolean     peer_interested;
 	gboolean     interested;
 	gboolean     choking;
-	
+
+	gchar       *bitfield;
+
 	GString     *buffer;
 	
 	void       (*encryption_func) (BtPeer *peer, guint len, gpointer buf);
