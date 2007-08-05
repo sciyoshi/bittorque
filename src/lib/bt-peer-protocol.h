@@ -25,6 +25,14 @@
 
 void bt_peer_send_handshake (BtPeer *peer);
 
+void bt_peer_send_request (BtPeer *peer, guint block);
+
+void bt_peer_choke (BtPeer *peer);
+void bt_peer_unchoke (BtPeer *peer);
+
+void bt_peer_interest (BtPeer *peer);
+void bt_peer_uninterest (BtPeer *peer);
+
 void bt_peer_data_received (BtPeer *peer, guint len, gpointer buf, gpointer data);
 
 #endif
