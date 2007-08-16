@@ -111,8 +111,8 @@ envgtk.Append(CPPDEFINES=
 	['ENABLE_NLS',
 	 r'GETTEXT_PACKAGE=\"bittorque\"',
 	 r'BITTORQUE_WEBSITE=\"www.bittorque.org\"',
-	 r'BITTORQUE_LOCALE_DIR=\"C:\\MSYS\\home\\Yoshi\\Projects\\bittorque\\build\\locale\\\\\"',
-	 r'BITTORQUE_DATA_DIR=\"C:\\MSYS\\home\\Yoshi\\Projects\\bittorque\\data\\\\\"'])
+	 r'BITTORQUE_LOCALE_DIR=\"/home/sciyoshi/Projects/bittorque/data/\"',
+	 r'BITTORQUE_DATA_DIR=\"/home/sciyoshi/Projects/bittorque/data/\"'])
 
 if env['embed_data']:
 	envgtk.Append(CPPDEFINES=['BITTORQUE_EMBED_DATA'])

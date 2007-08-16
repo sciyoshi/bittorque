@@ -162,7 +162,7 @@ bittorque_open_config_file (gchar **filename)
 	}
 
 	if (!loaded) {
-		g_message (_("Using default configuration,,,"));
+		g_message (_("Using default configuration..."));
 
 		if (filename != NULL) {
 			if (bittorque_private_dir != NULL)
@@ -293,6 +293,8 @@ main (int argc, char *argv[])
 	/* set the locale */
 	gtk_set_locale ();
 
+	gtk_icon_theme_append_search_path (gtk_icon_theme_get_default (), BITTORQUE_DATA_DIR "icons" G_DIR_SEPARATOR_S);
+
 	bittorque.config = bittorque_open_config_file (&(bittorque.config_file));
 
 	bittorque.default_config = bittorque_load_default_config ();
@@ -315,7 +317,7 @@ main (int argc, char *argv[])
 
 	bittorque.status_icon = gtk_status_icon_new ();
 
-	gtk_status_icon_set_from_pixbuf (bittorque.status_icon, bittorque_icon_from_size (gtk_status_icon_get_size (bittorque.status_icon), NULL));
+	gtk_status_icon_set_from_icon_name (bittorque.status_icon, "bittorque"); /*bittorque_icon_from_size (gtk_status_icon_get_size (bittorque.status_icon), NULL));*/
 
 	gtk_status_icon_set_visible (bittorque.status_icon, TRUE);
 

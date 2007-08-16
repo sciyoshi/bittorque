@@ -214,6 +214,9 @@ bt_client_name_from_id (const gchar *id)
 		if (!memcmp (&id[1], "AZ", 2))
 			return g_strdup_printf ("Azureus %c.%c.%c.%c", id[3], id[4], id[5], id[6]);
 
+		if (!memcmp (&id[1], "UT", 2))
+			return g_strdup_printf ("μTorrent %c.%c.%c.%c", id[3], id[4], id[5], id[6]);
+
 		if (!memcmp (&id[1], "TS", 2))
 			return g_strdup_printf ("TorrentStorm (%c%c%c%c)", id[3], id[4], id[5], id[6]);
 
