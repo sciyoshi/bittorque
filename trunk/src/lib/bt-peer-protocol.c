@@ -22,6 +22,7 @@
 
 #include "bt-peer-protocol.h"
 #include "bt-peer-encryption.h"
+#include "bt-utils.h"
 
 typedef enum {
 	BT_PEER_DATA_STATUS_NEED_MORE,
@@ -125,8 +126,8 @@ void
 bt_peer_choke (BtPeer *peer)
 {
 	gchar buf[5];
-
 	guint len = g_htonl(1);
+
 	g_memmove(buf, &len, 4);
 
 	buf[4] = BT_PEER_MSG_CHOKE;
@@ -140,8 +141,8 @@ void
 bt_peer_unchoke (BtPeer *peer)
 {
 	gchar buf[5];
-
 	guint len = g_htonl(1);
+
 	g_memmove(buf, &len, 4);
 
 	buf[4] = BT_PEER_MSG_UNCHOKE;
@@ -155,8 +156,8 @@ void
 bt_peer_interest (BtPeer *peer)
 {
 	gchar buf[5];
-
 	guint len = g_htonl(1);
+
 	g_memmove(buf, &len, 4);
 
 	buf[4] = BT_PEER_MSG_INTERESTED;
@@ -170,8 +171,8 @@ void
 bt_peer_uninterest (BtPeer *peer)
 {
 	gchar buf[5];
-
 	guint len = g_htonl(1);
+
 	g_memmove(buf, &len, 4);
 
 	buf[4] = BT_PEER_MSG_UNINTERESTED;
@@ -255,16 +256,19 @@ static BtPeerDataStatus
 bt_peer_check_msg (BtPeer *peer)
 {
 	guint len;
-	gchar tmp[4];
 	gint msg;
+	guint piece, byte_index, begin, length;
+	gchar *peer_name;
 
 	if (peer->buffer->len < 4)
 		return BT_PEER_DATA_STATUS_NEED_MORE;
 
-	g_memmove (tmp, peer->buffer->str, 4);
-	len = g_ntohl (*((guint*)tmp));
+	len = g_ntohl (*((guint *)(peer->buffer->str)));
 
-	g_debug ("got msg length %i buffer len is %i", len, peer->buffer->len);
+	g_debug ("got msg length %d buffer len is %" G_GSSIZE_FORMAT, len, peer->buffer->len);
+	peer_name = bt_client_name_from_id (peer->peer_id);
+	g_debug ("for peer %s", peer_name);
+	g_free (peer_name);
 
 	if (len) {
 		if (peer->buffer->len < 5)
@@ -331,9 +335,8 @@ bt_peer_check_msg (BtPeer *peer)
 			len_check = bt_peer_check_msg_length (peer, len, 5);
 			switch (len_check) {
 			case BT_PEER_DATA_STATUS_SUCCESS:
-				g_memmove (tmp, peer->buffer->str + 5, 4);
-				guint piece = g_ntohl (*((guint*)tmp));
-				guint byte_index = piece / 8;
+				piece = g_ntohl (*((guint *)(peer->buffer->str + 5)));
+				byte_index = piece / 8;
 				peer->bitfield[byte_index] |= 1 << ((7 - piece) % 8);
 				g_debug ("peer has piece %i", piece);
 				break;
@@ -350,13 +353,13 @@ bt_peer_check_msg (BtPeer *peer)
 				g_debug ("peer sent bitfield");
 				peer->bitfield = g_memdup (peer->buffer->str + 5, len - 1);
 				// dumping bitfield info for debug
-				guint i = 0;
-				for ( ; i < (len - 1) * 8; i++) {
-					guint byte_index = i / 8;
-					gchar byte = peer->bitfield[byte_index];
-					guint bit = i % 8;
-					g_debug ("bit %i in byte %i is %d", bit, byte_index, (byte >> (7 - bit))&1);
-				}
+				//guint i = 0;
+				//for ( ; i < (len - 1) * 8; i++) {
+					//guint byte_index = i / 8;
+					//gchar byte = peer->bitfield[byte_index];
+					//guint bit = i % 8;
+					//g_debug ("bit %i in byte %i is %d", bit, byte_index, (byte >> (7 - bit))&1);
+				//}
 				break;
 
 			default:
@@ -368,12 +371,9 @@ bt_peer_check_msg (BtPeer *peer)
 			len_check = bt_peer_check_msg_length (peer, len, 13);
 			switch (len_check) {
 			case BT_PEER_DATA_STATUS_SUCCESS:
-				g_memmove (tmp, peer->buffer->str + 5, 4);
-				guint piece = g_htonl (*(guint*)tmp);
-				g_memmove (tmp, peer->buffer->str + 9, 4);
-				guint begin = g_htonl (*(guint*)tmp);
-				g_memmove (tmp, peer->buffer->str + 13, 4);
-				guint length = g_htonl (*(guint*)tmp);
+				piece = g_htonl (*(guint*)(peer->buffer->str + 5));
+				begin = g_htonl (*(guint*)(peer->buffer->str + 9));
+				length = g_htonl (*(guint*)(peer->buffer->str + 13));
 				g_debug ("peer requested piece %i, begin %i, length %i", piece, begin, length);
 				break;
 
@@ -385,8 +385,7 @@ bt_peer_check_msg (BtPeer *peer)
 			len_check = bt_peer_check_msg_length (peer, len, 0);
 			switch (len_check) {
 			case BT_PEER_DATA_STATUS_SUCCESS:
-				g_memmove (tmp, peer->buffer->str + 5, 4);
-				guint piece = g_htonl (*(guint*)tmp);
+				piece = g_htonl (*(guint*)(peer->buffer->str + 5));
 				g_debug ("peer sent piece %i", piece);
 				break;
 
@@ -399,12 +398,9 @@ bt_peer_check_msg (BtPeer *peer)
 			len_check = bt_peer_check_msg_length (peer, len, 13);
 			switch (len_check) {
 			case BT_PEER_DATA_STATUS_SUCCESS:
-				g_memmove (tmp, peer->buffer->str + 5, 4);
-				guint piece = g_htonl (*(guint*)tmp);
-				g_memmove (tmp, peer->buffer->str + 9, 4);
-				guint begin = g_htonl (*(guint*)tmp);
-				g_memmove (tmp, peer->buffer->str + 13, 4);
-				guint length = g_htonl (*(guint*)tmp);
+				piece = g_htonl (*(guint*)(peer->buffer->str + 5));
+				begin = g_htonl (*(guint*)(peer->buffer->str + 9));
+				length = g_htonl (*(guint*)(peer->buffer->str + 13));
 				g_debug ("peer canceled piece %i, begin %i, length %i", piece, begin, length);
 				break;
 

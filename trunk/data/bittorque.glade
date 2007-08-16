@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.0.2 on Fri Mar 30 02:38:59 2007 by sciyoshi@yoshp-->
+<!--Generated with glade3 3.2.0 on Sun Aug 12 14:50:27 2007 by sciyoshi@yoshp-->
 <glade-interface>
   <widget class="GtkWindow" id="main_window">
     <property name="title" translatable="yes">BitTorque</property>
@@ -91,8 +91,8 @@
                           <widget class="GtkImage" id="menu-item-image6">
                             <property name="visible">True</property>
                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_ENTER_NOTIFY_MASK</property>
-                            <property name="stock">gtk-edit</property>
                             <property name="icon_size">1</property>
+                            <property name="icon_name">plugins</property>
                           </widget>
                         </child>
                       </widget>
@@ -151,11 +151,14 @@
             <child>
               <widget class="GtkToolButton" id="open_torrent_toolbutton">
                 <property name="visible">True</property>
+                <property name="tooltip" translatable="yes">Open torrent...</property>
                 <property name="label">Open Torrent...</property>
                 <property name="stock_id">gtk-open</property>
-                <property name="tooltip" translatable="yes">Open torrent...</property>
                 <signal name="clicked" handler="on_open_torrent_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="create_torrent_toolbutton">
@@ -164,11 +167,18 @@
                 <property name="stock_id">gtk-new</property>
                 <signal name="clicked" handler="on_create_torrent_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="separatortoolitem1">
                 <property name="visible">True</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="toolbutton1">
@@ -176,6 +186,9 @@
                 <property name="label">Start</property>
                 <property name="stock_id">gtk-media-play</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="toolbutton2">
@@ -183,6 +196,9 @@
                 <property name="label">Pause</property>
                 <property name="stock_id">gtk-media-pause</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="toolbutton3">
@@ -190,6 +206,9 @@
                 <property name="label">Stop</property>
                 <property name="stock_id">gtk-media-stop</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="toolbutton4">
@@ -197,6 +216,9 @@
                 <property name="label">Remove</property>
                 <property name="stock_id">gtk-delete</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
           </widget>
           <packing>
@@ -378,6 +400,7 @@
   </widget>
   <widget class="GtkDialog" id="preferences_dialog">
     <property name="border_width">5</property>
+    <property name="type_hint">GDK_WINDOW_TYPE_HINT_NORMAL</property>
     <property name="has_separator">False</property>
     <child internal-child="vbox">
       <widget class="GtkVBox" id="dialog-vbox1">
@@ -536,32 +559,6 @@
                             <property name="column_spacing">6</property>
                             <property name="row_spacing">6</property>
                             <child>
-                              <widget class="GtkLabel" id="label8">
-                                <property name="visible">True</property>
-                                <property name="xalign">0</property>
-                                <property name="label" translatable="yes">Port:</property>
-                              </widget>
-                              <packing>
-                                <property name="x_options">GTK_FILL</property>
-                                <property name="y_options">GTK_FILL</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <widget class="GtkSpinButton" id="spinbutton1">
-                                <property name="visible">True</property>
-                                <property name="can_focus">True</property>
-                                <property name="adjustment">6881 1024 65535 1 10 10</property>
-                                <property name="climb_rate">20</property>
-                                <property name="snap_to_ticks">True</property>
-                                <property name="numeric">True</property>
-                              </widget>
-                              <packing>
-                                <property name="left_attach">1</property>
-                                <property name="right_attach">2</property>
-                                <property name="y_options">GTK_FILL</property>
-                              </packing>
-                            </child>
-                            <child>
                               <widget class="GtkHBox" id="hbox1">
                                 <property name="visible">True</property>
                                 <child>
@@ -586,6 +583,32 @@
                                 <property name="right_attach">2</property>
                                 <property name="top_attach">1</property>
                                 <property name="bottom_attach">2</property>
+                                <property name="y_options">GTK_FILL</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkSpinButton" id="spinbutton1">
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="adjustment">6881 1024 65535 1 10 10</property>
+                                <property name="climb_rate">20</property>
+                                <property name="snap_to_ticks">True</property>
+                                <property name="numeric">True</property>
+                              </widget>
+                              <packing>
+                                <property name="left_attach">1</property>
+                                <property name="right_attach">2</property>
+                                <property name="y_options">GTK_FILL</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkLabel" id="label8">
+                                <property name="visible">True</property>
+                                <property name="xalign">0</property>
+                                <property name="label" translatable="yes">Port:</property>
+                              </widget>
+                              <packing>
+                                <property name="x_options">GTK_FILL</property>
                                 <property name="y_options">GTK_FILL</property>
                               </packing>
                             </child>
@@ -627,13 +650,24 @@
                                 <property name="column_spacing">6</property>
                                 <property name="row_spacing">6</property>
                                 <child>
-                                  <widget class="GtkLabel" id="label11">
+                                  <widget class="GtkEntry" id="entry2">
                                     <property name="visible">True</property>
-                                    <property name="xalign">0</property>
-                                    <property name="label" translatable="yes">Maximum download speed:</property>
                                   </widget>
                                   <packing>
-                                    <property name="x_options">GTK_FILL</property>
+                                    <property name="left_attach">1</property>
+                                    <property name="right_attach">2</property>
+                                    <property name="y_options">GTK_FILL</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <widget class="GtkEntry" id="entry1">
+                                    <property name="visible">True</property>
+                                  </widget>
+                                  <packing>
+                                    <property name="left_attach">1</property>
+                                    <property name="right_attach">2</property>
+                                    <property name="top_attach">1</property>
+                                    <property name="bottom_attach">2</property>
                                     <property name="y_options">GTK_FILL</property>
                                   </packing>
                                 </child>
@@ -651,24 +685,13 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <widget class="GtkEntry" id="entry1">
+                                  <widget class="GtkLabel" id="label11">
                                     <property name="visible">True</property>
+                                    <property name="xalign">0</property>
+                                    <property name="label" translatable="yes">Maximum download speed:</property>
                                   </widget>
                                   <packing>
-                                    <property name="left_attach">1</property>
-                                    <property name="right_attach">2</property>
-                                    <property name="top_attach">1</property>
-                                    <property name="bottom_attach">2</property>
-                                    <property name="y_options">GTK_FILL</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <widget class="GtkEntry" id="entry2">
-                                    <property name="visible">True</property>
-                                  </widget>
-                                  <packing>
-                                    <property name="left_attach">1</property>
-                                    <property name="right_attach">2</property>
+                                    <property name="x_options">GTK_FILL</property>
                                     <property name="y_options">GTK_FILL</property>
                                   </packing>
                                 </child>
@@ -715,17 +738,6 @@
                                 <property name="column_spacing">6</property>
                                 <property name="row_spacing">6</property>
                                 <child>
-                                  <widget class="GtkLabel" id="label10">
-                                    <property name="visible">True</property>
-                                    <property name="xalign">0</property>
-                                    <property name="label" translatable="yes">Encryption mode:</property>
-                                  </widget>
-                                  <packing>
-                                    <property name="x_options">GTK_FILL</property>
-                                    <property name="y_options">GTK_FILL</property>
-                                  </packing>
-                                </child>
-                                <child>
                                   <widget class="GtkComboBox" id="combobox1">
                                     <property name="visible">True</property>
                                     <property name="items" translatable="yes">None
@@ -735,6 +747,17 @@ Required</property>
                                   <packing>
                                     <property name="left_attach">1</property>
                                     <property name="right_attach">2</property>
+                                    <property name="y_options">GTK_FILL</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <widget class="GtkLabel" id="label10">
+                                    <property name="visible">True</property>
+                                    <property name="xalign">0</property>
+                                    <property name="label" translatable="yes">Encryption mode:</property>
+                                  </widget>
+                                  <packing>
+                                    <property name="x_options">GTK_FILL</property>
                                     <property name="y_options">GTK_FILL</property>
                                   </packing>
                                 </child>
