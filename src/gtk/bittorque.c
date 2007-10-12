@@ -24,7 +24,7 @@
 #include "bittorque-ui.h"
 
 #ifdef BITTORQUE_EMBED_DATA
-# include "bittorque-glade.h"
+# include "bittorque-ui.h"
 # include "bittorque-icon-16.h"
 # include "bittorque-icon-24.h"
 # include "bittorque-icon-64.h"
@@ -54,17 +54,19 @@ static const GOptionEntry bittorque_option_entries[] = {
 BittorqueApp bittorque;
 
 static void
-bittorque_load_widgets (GladeXML *xml)
+bittorque_load_widgets (GtkBuilder *builder)
 {
-	GtkTreeViewColumn *col;
-	GtkCellRenderer   *cell;
+//	GtkTreeViewColumn *col;
+//	GtkCellRenderer   *cell;
 	GtkTreeSelection  *selection;
 
-	bittorque.main_window = glade_xml_get_widget (xml, "main_window");
+	bittorque.main_window = GTK_WIDGET (gtk_builder_get_object (builder, "bittorque_window"));
 
-	bittorque.preferences_dialog = glade_xml_get_widget (xml, "preferences_dialog");
+	bittorque.preferences_dialog = GTK_WIDGET (gtk_builder_get_object (builder, "preferences_dialog"));
 
-	bittorque.torrents_treeview = glade_xml_get_widget (xml, "torrents_treeview");
+	bittorque.torrents_treeview = GTK_WIDGET (gtk_builder_get_object (builder, "torrents_treeview"));
+	bittorque.torrents_list = GTK_LIST_STORE (gtk_builder_get_object (builder, "torrents_model"));//gtk_list_store_new (1, BT_TYPE_TORRENT);
+/*
 	bittorque.torrents_list = gtk_list_store_new (1, BT_TYPE_TORRENT);
 	gtk_tree_view_set_model (GTK_TREE_VIEW (bittorque.torrents_treeview), GTK_TREE_MODEL (bittorque.torrents_list));
 	g_object_unref (bittorque.torrents_list);
@@ -95,6 +97,10 @@ bittorque_load_widgets (GladeXML *xml)
 	gtk_tree_view_column_pack_start (col, cell, TRUE);
 	gtk_tree_view_column_set_cell_data_func (col, cell, torrents_size_cell_renderer_func, NULL, NULL);
 	gtk_tree_view_append_column (GTK_TREE_VIEW (bittorque.torrents_treeview), col);
+*/
+	gtk_tree_view_column_set_cell_data_func (GTK_TREE_VIEW_COLUMN(gtk_builder_get_object (builder, "treeviewcolumn1")), GTK_CELL_RENDERER(gtk_builder_get_object (builder, "treeviewcolumn1-renderer1")), torrents_status_cell_renderer_func, NULL, NULL);
+	gtk_tree_view_column_set_cell_data_func (GTK_TREE_VIEW_COLUMN(gtk_builder_get_object (builder, "treeviewcolumn2")), GTK_CELL_RENDERER(gtk_builder_get_object (builder, "treeviewcolumn2-renderer1")), torrents_name_cell_renderer_func, NULL, NULL);
+	gtk_tree_view_column_set_cell_data_func (GTK_TREE_VIEW_COLUMN(gtk_builder_get_object (builder, "treeviewcolumn3")), GTK_CELL_RENDERER(gtk_builder_get_object (builder, "treeviewcolumn3-renderer1")), torrents_size_cell_renderer_func, NULL, NULL);
 
 	selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (bittorque.torrents_treeview));
 
@@ -175,36 +181,41 @@ bittorque_open_config_file (gchar **filename)
 	return config;
 }
 
-static GladeXML *
-bittorque_open_glade_file ()
+static GtkBuilder *
+bittorque_open_ui ()
 {
-	GladeXML *xml = NULL;
+	GtkBuilder *builder = gtk_builder_new ();
 
 #ifndef BITTORQUE_EMBED_DATA
-	gchar    *glade_file = NULL;
+	gchar    *ui_file = NULL;
+	gboolean  found = FALSE;
 
-	/* look for the glade file, first in private directory if specified, then BITTORQUE_DATA_DIR, then in current directory */
+	/* look for the UI file, first in private directory if specified, then BITTORQUE_DATA_DIR, then in current directory */
 	if (bittorque_private_dir != NULL) {
-		glade_file = g_build_filename (bittorque_private_dir, "bittorque.glade", NULL);
-		if (g_file_test (glade_file, G_FILE_TEST_EXISTS))
-			xml = glade_xml_new (glade_file, NULL, NULL);
-		g_free (glade_file);
+		ui_file = g_build_filename (bittorque_private_dir, "bittorque.ui", NULL);
+		if (g_file_test (ui_file, G_FILE_TEST_EXISTS)) {
+			gtk_builder_add_from_file (builder, ui_file, NULL);
+			found = TRUE;
+		}
+		g_free (ui_file);
 	}
 
-	if (!xml) {
-		if (g_file_test (BITTORQUE_DATA_DIR "bittorque.glade", G_FILE_TEST_EXISTS))
-			xml = glade_xml_new (BITTORQUE_DATA_DIR "bittorque.glade", NULL, NULL);
+	if (!found) {
+		if (g_file_test (BITTORQUE_DATA_DIR "bittorque.ui", G_FILE_TEST_EXISTS)) {
+			gtk_builder_add_from_file (builder, BITTORQUE_DATA_DIR "bittorque.ui", NULL);
+			found = TRUE;
+		}
 	}
 
-	if (!xml) {
-		g_printerr (_("Couldn't find bittorque.glade - check your installation!\n"));
+	if (!found) {
+		g_printerr (_("Couldn't find bittorque.ui - check your installation!\n"));
 		return NULL;
 	}
 #else
-	xml = glade_xml_new_from_buffer (bittorque_glade, sizeof (bittorque_glade) / sizeof (bittorque_glade[0]), NULL, NULL);
+	gtk_builder_add_from_string (builder, bittorque_ui, sizeof (bittorque_ui) / sizeof (bittorque_ui[0]), NULL);
 #endif
 
-	return xml;
+	return builder;
 }
 
 GdkPixbuf *
@@ -238,7 +249,7 @@ bittorque_icon_from_size (gint size, GError **error)
 int
 main (int argc, char *argv[])
 {
-	GladeXML       *xml = NULL;
+	GtkBuilder     *builder = NULL;
 	GError         *error = NULL;
 	GOptionContext *context = NULL;
 
@@ -299,15 +310,15 @@ main (int argc, char *argv[])
 
 	bittorque.default_config = bittorque_load_default_config ();
 
-	xml = bittorque_open_glade_file ();
+	builder = bittorque_open_ui ();
 
-	g_return_val_if_fail (xml != NULL, 1);
+	g_return_val_if_fail (builder != NULL, 1);
 
-	bittorque_load_widgets (xml);
+	bittorque_load_widgets (builder);
 
-	glade_xml_signal_autoconnect (xml);
+	gtk_builder_connect_signals (builder, NULL);
 
-	g_object_unref (xml);
+//	g_object_unref (builder);
 
 	bittorque.manager = g_object_new (BT_TYPE_MANAGER, "port", bittorque_local_port, NULL);
 

@@ -1,7 +1,7 @@
 Import('*')
 
 if env['embed_data']:
-	env.Command('bittorque-glade.h', ['#/data/bittorque.glade'], 'python tools/variablize.py --static $SOURCE $TARGET bittorque_glade')
+	env.Command('bittorque-ui.h', ['#/data/bittorque.ui'], 'python tools/variablize.py --static $SOURCE $TARGET bittorque_ui')
 	env.Command('bittorque-icon-16.h', ['#/data/icons/bittorque16.png'], 'gdk-pixbuf-csource --raw --name=bittorque_icon_16 $SOURCE > $TARGET')
 	env.Command('bittorque-icon-24.h', ['#/data/icons/bittorque24.png'], 'gdk-pixbuf-csource --raw --name=bittorque_icon_24 $SOURCE > $TARGET')
 	env.Command('bittorque-icon-64.h', ['#/data/icons/bittorque64.png'], 'gdk-pixbuf-csource --raw --name=bittorque_icon_64 $SOURCE > $TARGET')

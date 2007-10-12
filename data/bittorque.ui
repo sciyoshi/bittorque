@@ -1,0 +1,246 @@
+<?xml version="1.0" standalone="no"?> <!--*- mode: xml -*-->
+<interface>
+    <object class="GtkListStore" id="torrents_model">
+        <columns>
+            <column type="gchararray"/>
+            <column type="gchararray"/>
+        </columns>
+    </object>
+    <object class="GtkUIManager" id="uimanager">
+        <child>
+            <object class="GtkActionGroup" id="DefaultActions">
+                <child>
+                    <object class="GtkAction" id="about">
+                        <property name="name">about</property>
+                        <property name="label" translatable="yes">_About BitTorque</property>
+                        <property name="short_label" translatable="yes">_About</property>
+                        <property name="stock_id">gtk-about</property>
+                        <signal handler="bittorque_about_callback" name="activate"/>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkAction" id="create_new_torrent">
+                        <property name="name">create_new_torrent</property>
+                        <property name="label" translatable="yes">Create _New Torrent...</property>
+                        <property name="short_label" translatable="yes">New</property>
+                        <property name="tooltip" translatable="yes">Create a new torrent</property>
+                        <property name="stock_id">gtk-new</property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkAction" id="edit">
+                        <property name="name">edit</property>
+                        <property name="label" translatable="yes">Edit</property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkAction" id="help">
+                        <property name="name">help</property>
+                        <property name="stock_id">gtk-help</property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkAction" id="open_torrent">
+                        <property name="name">open_torrent</property>
+                        <property name="label" translatable="yes">_Open Torrent...</property>
+                        <property name="short_label" translatable="yes">_Open</property>
+                        <property name="tooltip" translatable="yes">Open a torrent</property>
+                        <property name="stock_id">gtk-open</property>
+                        <signal handler="bittorque_open_torrent_callback" name="activate"/>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkAction" id="search">
+                        <property name="name">search</property>
+                        <property name="label" translatable="yes">_Search</property>
+                        <property name="short_label" translatable="yes">_Search</property>
+                        <property name="tooltip" translatable="yes">Search Torrents</property>
+                        <property name="stock_id">gtk-find</property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkAction" id="pause">
+                        <property name="name">pause</property>
+                        <property name="label" translatable="yes">_Pause Torrent</property>
+                        <property name="short_label" translatable="yes">_Pause</property>
+                        <property name="stock_id">gtk-media-pause</property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkAction" id="preferences">
+                        <property name="name">preferences</property>
+                        <property name="stock_id">gtk-preferences</property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkAction" id="quit">
+                        <property name="name">quit</property>
+                        <property name="label" translatable="yes">_Quit...</property>
+                        <property name="short_label" translatable="yes">_Quit</property>
+                        <property name="tooltip" translatable="yes">Quit BitTorque</property>
+                        <property name="stock_id">gtk-quit</property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkAction" id="start">
+                        <property name="name">start</property>
+                        <property name="label" translatable="yes">_Start Torrent</property>
+                        <property name="short_label" translatable="yes">_Start</property>
+                        <property name="stock_id">gtk-media-play</property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkAction" id="stop">
+                        <property name="name">stop</property>
+                        <property name="label" translatable="yes">S_top Torrent</property>
+                        <property name="short_label" translatable="yes">S_top</property>
+                        <property name="stock_id">gtk-media-stop</property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkAction" id="torrents">
+                        <property name="name">torrents</property>
+                        <property name="label" translatable="yes">Torrents</property>
+                    </object>
+                </child>
+            </object>
+        </child>
+        <ui>
+            <menubar action="menubar1" name="menubar1">
+                <menu action="torrents" name="torrents">
+                    <menuitem action="create_new_torrent" name="create_new_torrent"/>
+                    <menuitem action="open_torrent" name="open_torrent"/>
+                    <separator/>
+                    <menuitem action="start" name="start"/>
+                    <menuitem action="pause" name="pause"/>
+                    <menuitem action="stop" name="stop"/>
+                    <separator/>
+                    <menuitem action="quit" name="quit"/>
+                </menu>
+                <menu action="edit" name="edit">
+                    <menuitem action="preferences" name="preferences"/>
+                </menu>
+                <menu action="help" name="help">
+                    <menuitem action="about" name="about"/>
+                </menu>
+            </menubar>
+            <toolbar action="toolbar1" name="toolbar1">
+                <toolitem action="create_new_torrent" name="create_new_torrent"/>
+                <toolitem action="open_torrent" name="open_torrent"/>
+                <separator name="sep"/>
+                <toolitem action="start" name="start"/>
+                <toolitem action="pause" name="pause"/>
+                <toolitem action="stop" name="stop"/>
+                <separator name="sep"/>
+                <toolitem action="preferences" name="preferences"/>
+                <toolitem name="search" action="search"/>
+            </toolbar>
+        </ui>
+    </object>
+    <object class="GtkWindow" id="bittorque_window">
+        <property name="default_height">250</property>
+        <property name="default_width">440</property>
+        <property name="visible">True</property>
+        <child>
+            <object class="GtkVBox" id="vbox1">
+                <property name="visible">True</property>
+                <child>
+                    <object constructor="uimanager" class="GtkMenuBar" id="menubar1">
+                        <property name="visible">True</property>
+                    </object>
+                    <packing>
+                        <property name="expand">False</property>
+                    </packing>
+                </child>
+                <child>
+                    <object constructor="uimanager" class="GtkToolbar" id="toolbar1">
+                        <property name="visible">True</property>
+                    </object>
+                    <packing>
+                        <property name="expand">False</property>
+                        <property name="position">1</property>
+                    </packing>
+                </child>
+                <child>
+                    <object class="GtkVPaned" id="vpaned1">
+                        <property name="position">46</property>
+                        <property name="position_set">True</property>
+                        <property name="visible">True</property>
+                        <child>
+                            <object class="GtkTreeView" id="torrents_treeview">
+                                <property name="enable_tree_lines">True</property>
+                                <property name="is_focus">True</property>
+                                <property name="model">torrents_model</property>
+                                <property name="search_column">0</property>
+                                <property name="visible">True</property>
+                                <child>
+                                    <object class="GtkTreeViewColumn" id="treeviewcolumn1">
+                                        <property name="clickable">True</property>
+                                        <property name="title" translatable="yes">Status</property>
+                                        <child>
+                                            <object class="GtkCellRendererPixbuf" id="treeviewcolumn1-renderer1"/>
+                                        </child>
+                                    </object>
+                                </child>
+                                <child>
+                                    <object class="GtkTreeViewColumn" id="treeviewcolumn2">
+                                        <property name="clickable">True</property>
+                                        <property name="resizable">True</property>
+                                        <property name="title" translatable="yes">Name</property>
+                                        <child>
+                                            <object class="GtkCellRendererText" id="treeviewcolumn2-renderer1"/>
+                                            <attributes>
+                                                <attribute name="text">1</attribute>
+                                            </attributes>
+                                        </child>
+                                    </object>
+                                </child>
+                                <child>
+                                    <object class="GtkTreeViewColumn" id="treeviewcolumn3">
+                                        <property name="clickable">True</property>
+                                        <property name="resizable">True</property>
+                                        <property name="title" translatable="yes">Size</property>
+                                        <child>
+                                            <object class="GtkCellRendererText" id="treeviewcolumn3-renderer1"/>
+                                            <attributes>
+                                                <attribute name="text">2</attribute>
+                                            </attributes>
+                                        </child>
+                                    </object>
+                                </child>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkNotebook" id="notebook1">
+                                <property name="is_focus">True</property>
+                                <property name="visible">True</property>
+                                <child>
+                                    <object class="GtkLabel" id="label1">
+                                        <property name="label" translatable="yes">label1</property>
+                                        <property name="visible">True</property>
+                                        <property name="xalign">0.0</property>
+                                    </object>
+                                </child>
+                            </object>
+                            <packing>
+                                <property name="resize">True</property>
+                            </packing>
+                        </child>
+                    </object>
+                    <packing>
+                        <property name="position">2</property>
+                    </packing>
+                </child>
+                <child>
+                    <object class="GtkStatusbar" id="statusbar1">
+                        <property name="visible">True</property>
+                    </object>
+                    <packing>
+                        <property name="expand">False</property>
+                        <property name="position">3</property>
+                    </packing>
+                </child>
+            </object>
+        </child>
+    </object>
+</interface>
