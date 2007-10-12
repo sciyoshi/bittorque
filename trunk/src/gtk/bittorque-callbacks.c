@@ -52,13 +52,13 @@ on_quit_menuitem_activate (GtkMenuItem *menuitem G_GNUC_UNUSED, gpointer data G_
 }
 
 BT_EXPORT void
-on_about_menuitem_activate (GtkMenuItem *menuitem G_GNUC_UNUSED, gpointer data G_GNUC_UNUSED)
+bittorque_about_callback (GtkMenuItem *menuitem G_GNUC_UNUSED, gpointer data G_GNUC_UNUSED)
 {
 
 }
 
 BT_EXPORT void
-on_open_torrent_toolbutton_clicked (GtkToolButton *toolbutton G_GNUC_UNUSED, gpointer data G_GNUC_UNUSED)
+bittorque_open_torrent_callback (GtkToolButton *toolbutton G_GNUC_UNUSED, gpointer data G_GNUC_UNUSED)
 {
 	bittorque_open_torrent ();
 }
