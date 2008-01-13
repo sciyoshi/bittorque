@@ -24,6 +24,17 @@
 #include "bt-peer-encryption.h"
 #include "bt-utils.h"
 
+// defines for fixed length messages, bitfield and piece are of variable lengths
+#define BT_PEER_MSG_LENGTH_HANDSHAKE 48
+#define BT_PEER_MSG_LENGTH_CHOKE 5
+#define BT_PEER_MSG_LENGTH_UNCHOKE 5
+#define BT_PEER_MSG_LENGTH_INTERESTED 5
+#define BT_PEER_MSG_LENGTH_UNINTERESTED 5
+#define BT_PEER_MSG_LENGTH_HAVE 9
+#define BT_PEER_MSG_LENGTH_REQUEST 17
+#define BT_PEER_MSG_LENGTH_CANCEL 17
+#define BT_PEER_MSG_LENGTH_KEEP_ALIVE 4
+
 typedef enum {
 	BT_PEER_DATA_STATUS_NEED_MORE,
 	BT_PEER_DATA_STATUS_INVALID,
@@ -39,7 +50,8 @@ typedef enum {
 	BT_PEER_MSG_BITFIELD,
 	BT_PEER_MSG_REQUEST,
 	BT_PEER_MSG_PIECE,
-	BT_PEER_MSG_CANCEL
+	BT_PEER_MSG_CANCEL,
+	BT_PEER_MSG_KEEP_ALIVE // helper, not really a protocol message
 } BtPeerMsg;
 
 static void
@@ -83,7 +95,7 @@ bt_peer_get_piece_info (BtPeer* peer, guint block, guint* begin, guint* length)
 		*begin = pos_in_piece * bt_torrent_get_block_size (peer->torrent);
 
 	if (length)
-	*length = bt_torrent_get_block_size (peer->torrent);
+		*length = bt_torrent_get_block_size (peer->torrent);
 
 	return block / blocks_per_piece;
 }
@@ -116,8 +128,7 @@ bt_peer_send_request (BtPeer *peer, guint block)
 static void
 bt_peer_send_keep_alive (BtPeer *peer)
 {
-	// FIXME: check that buf acctually is intialized to all 0
-	gchar buf[4];
+	gchar buf[4] = {0, 0, 0, 0};
 
 	bt_peer_write_data (peer, 4, &buf);
 }
@@ -240,187 +251,251 @@ bt_peer_check_handshake (BtPeer *peer)
 }
 
 static BtPeerDataStatus
-bt_peer_check_msg_length (BtPeer *peer, guint len, guint expected)
+bt_peer_on_choke (BtPeer* peer)
 {
-	// expected is only used for fixed size messages, otherwise it should be zero
-	if (expected && len != expected)
+	guint32 msg_len;
+
+	// redundant, checked in bt_peer_peek_msg_type
+	if (peer->buffer->len < 5)
+		return BT_PEER_DATA_STATUS_NEED_MORE;
+
+	g_return_val_if_fail (peer->buffer->str[4] == BT_PEER_MSG_CHOKE, BT_PEER_DATA_STATUS_INVALID);
+
+	msg_len = g_ntohl (*((guint32*)(peer->buffer->str)));
+
+	// this message is fixed length
+	if (msg_len != 1)
 		return BT_PEER_DATA_STATUS_INVALID;
 
-	if (len > peer->buffer->len)
-		return BT_PEER_DATA_STATUS_NEED_MORE;
+	peer->peer_choking = TRUE;
+	g_debug ("choked by peer");
 
 	return BT_PEER_DATA_STATUS_SUCCESS;
 }
 
 static BtPeerDataStatus
-bt_peer_check_msg (BtPeer *peer)
+bt_peer_on_unchoke (BtPeer* peer)
 {
-	guint len;
-	gint msg;
-	guint piece, byte_index, begin, length;
-	gchar *peer_name;
+	guint32 msg_len;
+
+	// redundant, checked in bt_peer_peek_msg_type
+	if (peer->buffer->len < 5)
+		return BT_PEER_DATA_STATUS_NEED_MORE;
+
+	g_return_val_if_fail (peer->buffer->str[4] == BT_PEER_MSG_UNCHOKE, BT_PEER_DATA_STATUS_INVALID);
+
+	msg_len = g_ntohl (*((guint32*)(peer->buffer->str)));
+
+	// this message is fixed length
+	if (msg_len != 1)
+		return BT_PEER_DATA_STATUS_INVALID;
+
+	peer->peer_choking = FALSE;
+	g_debug ("unchoked by peer");
+
+	return BT_PEER_DATA_STATUS_SUCCESS;
+}
+
+static BtPeerDataStatus
+bt_peer_on_interested (BtPeer* peer)
+{
+	guint32 msg_len;
+
+	// redundant, checked in bt_peer_peek_msg_type
+	if (peer->buffer->len < 5)
+		return BT_PEER_DATA_STATUS_NEED_MORE;
+
+	g_return_val_if_fail (peer->buffer->str[4] == BT_PEER_MSG_INTERESTED, BT_PEER_DATA_STATUS_INVALID);
+
+	msg_len = g_ntohl (*((guint32*)(peer->buffer->str)));
+
+	// this message is fixed length
+	if (msg_len != 1)
+		return BT_PEER_DATA_STATUS_INVALID;
+
+	peer->peer_interested = TRUE;
+	g_debug ("peer interested");
+
+	return BT_PEER_DATA_STATUS_SUCCESS;
+}
+
+static BtPeerDataStatus
+bt_peer_on_uninterested (BtPeer* peer)
+{
+	guint32 msg_len;
+
+	// redundant, checked in bt_peer_peek_msg_type
+	if (peer->buffer->len < 5)
+		return BT_PEER_DATA_STATUS_NEED_MORE;
+
+	g_return_val_if_fail (peer->buffer->str[4] == BT_PEER_MSG_UNINTERESTED, BT_PEER_DATA_STATUS_INVALID);
+
+	msg_len = g_ntohl (*((guint32*)(peer->buffer->str)));
+
+	// this message is fixed length
+	if (msg_len != 1)
+		return BT_PEER_DATA_STATUS_INVALID;
+
+	peer->peer_interested = FALSE;
+	g_debug ("peer uninterested");
+
+	return BT_PEER_DATA_STATUS_SUCCESS;
+}
+
+static BtPeerDataStatus
+bt_peer_on_have (BtPeer* peer)
+{
+	guint32 msg_len;
+	guint32 piece;
+
+	if (peer->buffer->len < 9)
+		return BT_PEER_DATA_STATUS_NEED_MORE;
+
+	g_return_val_if_fail (peer->buffer->str[4] == BT_PEER_MSG_HAVE, BT_PEER_DATA_STATUS_INVALID);
+
+	msg_len = g_ntohl (*((guint32*)(peer->buffer->str)));
+
+	// this message is fixed length
+	if (msg_len != 9)
+		return BT_PEER_DATA_STATUS_INVALID;
+
+	piece = g_ntohl (*((guint32*)(peer->buffer->str + 5)));
+	peer->bitfield[piece / 8] |= 1 << (7 - (piece % 8));
+	g_debug ("peer has piece %i", piece);
+
+	return BT_PEER_DATA_STATUS_SUCCESS;
+}
+
+static BtPeerDataStatus
+bt_peer_on_bitfield (BtPeer* peer, guint* bytes_read)
+{
+	guint32 msg_len;
+
+	// redundant, checked in bt_peer_peek_msg_type
+	if (peer->buffer->len < 5)
+		return BT_PEER_DATA_STATUS_NEED_MORE;
+
+	g_return_val_if_fail (peer->buffer->str[4] == BT_PEER_MSG_BITFIELD, BT_PEER_DATA_STATUS_INVALID);
+
+	msg_len = g_ntohl (*((guint32*)(peer->buffer->str)));
+
+	if ((msg_len - 1) * 8 < bt_torrent_get_num_pieces (peer->torrent))
+		return BT_PEER_DATA_STATUS_INVALID;
+
+	peer->bitfield = g_memdup (peer->buffer->str + 5, msg_len - 1);
+	g_debug ("peer sent bitfield");
+
+	*bytes_read = msg_len + 4;
+
+	return BT_PEER_DATA_STATUS_SUCCESS;
+}
+
+static BtPeerDataStatus
+bt_peer_on_request (BtPeer* peer)
+{
+	guint32 msg_len;
+	guint32 piece, begin, length;
+
+	if (peer->buffer->len < 17)
+		return BT_PEER_DATA_STATUS_NEED_MORE;
+
+	g_return_val_if_fail (peer->buffer->str[4] == BT_PEER_MSG_REQUEST, BT_PEER_DATA_STATUS_INVALID);
+
+	// this message is fixed length
+	msg_len = g_ntohl (*((guint32*)(peer->buffer->str)));
+	if (msg_len != 13)
+		return BT_PEER_DATA_STATUS_INVALID;
+
+	piece = g_htonl (*(guint32*)(peer->buffer->str + 5));
+	begin = g_htonl (*(guint32*)(peer->buffer->str + 9));
+	length = g_htonl (*(guint32*)(peer->buffer->str + 13));
+	g_debug ("peer requested piece %i, begin %i, length %i", piece, begin, length);
+
+	return BT_PEER_DATA_STATUS_SUCCESS;
+}
+
+static BtPeerDataStatus
+bt_peer_on_piece (BtPeer* peer, guint* bytes_read)
+{
+	guint32 msg_len;
+	guint32 piece, begin;
+	// gchar* data;
+
+	// redundant, checked in bt_peer_peek_msg_type
+	if (peer->buffer->len < 5)
+		return BT_PEER_DATA_STATUS_NEED_MORE;
+
+	g_return_val_if_fail (peer->buffer->str[4] == BT_PEER_MSG_PIECE, BT_PEER_DATA_STATUS_INVALID);
+
+	msg_len = g_ntohl (*((guint32*)(peer->buffer->str)));
+
+	// incoming data should be _at least_ 1 byte
+	if (msg_len <= 13)
+		return BT_PEER_DATA_STATUS_INVALID;
+
+	if (msg_len - 1 > bt_torrent_get_piece_length (peer->torrent))
+		return BT_PEER_DATA_STATUS_INVALID;
+
+	if (msg_len > peer->buffer->len)
+		return BT_PEER_DATA_STATUS_NEED_MORE;
+
+	piece = g_htonl (*(guint*)(peer->buffer->str + 5));
+	begin = g_htonl (*(guint*)(peer->buffer->str + 9));
+	// data = g_memdup (peer->buffer->str + 13, msg_len - 1);
+	g_debug ("peer sent piece %i beginning at %i", piece, begin);
+
+	*bytes_read = msg_len + 4;
+
+	return BT_PEER_DATA_STATUS_SUCCESS;
+}
+
+static BtPeerDataStatus
+bt_peer_on_cancel (BtPeer* peer)
+{
+	guint32 msg_len;
+	guint32 piece, begin, length;
+
+	if (peer->buffer->len < 17)
+		return BT_PEER_DATA_STATUS_NEED_MORE;
+
+	g_return_val_if_fail (peer->buffer->str[4] == BT_PEER_MSG_CANCEL, BT_PEER_DATA_STATUS_INVALID);
+
+	// this message is fixed length
+	msg_len = g_ntohl (*((guint32*)(peer->buffer->str)));
+	if (msg_len != 13)
+		return BT_PEER_DATA_STATUS_INVALID;
+
+	piece = g_htonl (*(guint32*)(peer->buffer->str + 5));
+	begin = g_htonl (*(guint32*)(peer->buffer->str + 9));
+	length = g_htonl (*(guint32*)(peer->buffer->str + 13));
+	g_debug ("peer canceled piece %i, begin %i, length %i", piece, begin, length);
+
+	return BT_PEER_DATA_STATUS_SUCCESS;
+}
+
+static BtPeerDataStatus
+bt_peer_peek_msg_type (BtPeer* peer, BtPeerMsg* type)
+{
+	guint32 msg_len;
 
 	if (peer->buffer->len < 4)
 		return BT_PEER_DATA_STATUS_NEED_MORE;
 
-	len = g_ntohl (*((guint *)(peer->buffer->str)));
-
-	g_debug ("got msg length %d buffer len is %" G_GSSIZE_FORMAT, len, peer->buffer->len);
-	peer_name = bt_client_name_from_id (peer->peer_id);
-	g_debug ("for peer %s", peer_name);
-	g_free (peer_name);
-
-	if (len) {
-		if (peer->buffer->len < 5)
-			return BT_PEER_DATA_STATUS_NEED_MORE;
-
-		msg = peer->buffer->str[4];
-
-		// FIXME: move parsing stuff to bt_peer_check_*
-		BtPeerDataStatus len_check;
-		switch (msg) {
-		case BT_PEER_MSG_CHOKE:
-			len_check = bt_peer_check_msg_length (peer, len, 1);
-			switch (len_check) {
-			case BT_PEER_DATA_STATUS_SUCCESS:
-				g_debug ("choked by peer");
-				peer->peer_choking = TRUE;
-				break;
-
-			default:
-				return len_check;
-			}
-			break;
-
-		case BT_PEER_MSG_UNCHOKE:
-			len_check = bt_peer_check_msg_length (peer, len, 1);
-			switch (len_check) {
-			case BT_PEER_DATA_STATUS_SUCCESS:
-				g_debug ("unchoked by peer");
-				peer->peer_choking = FALSE;
-				break;
-
-			default:
-				return len_check;
-			}
-			break;
-
-		case BT_PEER_MSG_INTERESTED:
-			len_check = bt_peer_check_msg_length (peer, len, 1);
-			switch (len_check) {
-			case BT_PEER_DATA_STATUS_SUCCESS:
-				g_debug ("peer interested");
-				peer->peer_interested = TRUE;
-				break;
-
-			default:
-				return len_check;
-			}
-			break;
-
-		case BT_PEER_MSG_UNINTERESTED:
-			len_check = bt_peer_check_msg_length (peer, len, 1);
-			switch (len_check) {
-			case BT_PEER_DATA_STATUS_SUCCESS:
-				g_debug ("peer not interested");
-				peer->peer_interested = FALSE;
-				break;
-
-			default:
-				return len_check;
-			}
-			break;
-
-		case BT_PEER_MSG_HAVE:
-			len_check = bt_peer_check_msg_length (peer, len, 5);
-			switch (len_check) {
-			case BT_PEER_DATA_STATUS_SUCCESS:
-				piece = g_ntohl (*((guint *)(peer->buffer->str + 5)));
-				byte_index = piece / 8;
-				peer->bitfield[byte_index] |= 1 << ((7 - piece) % 8);
-				g_debug ("peer has piece %i", piece);
-				break;
-
-			default:
-				return len_check;
-			}
-			break;
-
-		case BT_PEER_MSG_BITFIELD:
-			len_check = bt_peer_check_msg_length (peer, len, 0);
-			switch (len_check) {
-			case BT_PEER_DATA_STATUS_SUCCESS:
-				g_debug ("peer sent bitfield");
-				peer->bitfield = g_memdup (peer->buffer->str + 5, len - 1);
-				// dumping bitfield info for debug
-				//guint i = 0;
-				//for ( ; i < (len - 1) * 8; i++) {
-					//guint byte_index = i / 8;
-					//gchar byte = peer->bitfield[byte_index];
-					//guint bit = i % 8;
-					//g_debug ("bit %i in byte %i is %d", bit, byte_index, (byte >> (7 - bit))&1);
-				//}
-				break;
-
-			default:
-				return len_check;
-			}
-			break;
-
-		case BT_PEER_MSG_REQUEST:
-			len_check = bt_peer_check_msg_length (peer, len, 13);
-			switch (len_check) {
-			case BT_PEER_DATA_STATUS_SUCCESS:
-				piece = g_htonl (*(guint*)(peer->buffer->str + 5));
-				begin = g_htonl (*(guint*)(peer->buffer->str + 9));
-				length = g_htonl (*(guint*)(peer->buffer->str + 13));
-				g_debug ("peer requested piece %i, begin %i, length %i", piece, begin, length);
-				break;
-
-			default:
-				return len_check;
-			}
-
-		case BT_PEER_MSG_PIECE:
-			len_check = bt_peer_check_msg_length (peer, len, 0);
-			switch (len_check) {
-			case BT_PEER_DATA_STATUS_SUCCESS:
-				piece = g_htonl (*(guint*)(peer->buffer->str + 5));
-				g_debug ("peer sent piece %i", piece);
-				break;
-
-			default:
-				return len_check;
-			}
-			break;
-
-		case BT_PEER_MSG_CANCEL:
-			len_check = bt_peer_check_msg_length (peer, len, 13);
-			switch (len_check) {
-			case BT_PEER_DATA_STATUS_SUCCESS:
-				piece = g_htonl (*(guint*)(peer->buffer->str + 5));
-				begin = g_htonl (*(guint*)(peer->buffer->str + 9));
-				length = g_htonl (*(guint*)(peer->buffer->str + 13));
-				g_debug ("peer canceled piece %i, begin %i, length %i", piece, begin, length);
-				break;
-
-			default:
-				return len_check;
-			}
-			break;
-
-		default:
-			return BT_PEER_DATA_STATUS_INVALID;
-		}
-	}
-	else
+	msg_len = g_ntohl (*((guint32*)(peer->buffer->str)));
+	if (msg_len == 0)
 	{
-		// TODO: send keep alive ourselves, not only as response to incomming ones
-		g_debug ("peer sent keep-alive");
-		bt_peer_send_keep_alive (peer);
+		*type = BT_PEER_MSG_KEEP_ALIVE;
+		return BT_PEER_DATA_STATUS_SUCCESS;
 	}
 
-	g_string_erase (peer->buffer, 0, len + 4);
+	if (peer->buffer->len < 5)
+		return BT_PEER_DATA_STATUS_NEED_MORE;
+
+	// only 0 through 8 are valid protocol messages
+	if (peer->buffer->str[4] > 8)
+		return BT_PEER_DATA_STATUS_INVALID;
+
+	*type = (BtPeerMsg) peer->buffer->str[4];
 
 	return BT_PEER_DATA_STATUS_SUCCESS;
 }
@@ -428,6 +503,9 @@ bt_peer_check_msg (BtPeer *peer)
 void
 bt_peer_data_received (BtPeer *peer, guint len, gpointer buf, gpointer data G_GNUC_UNUSED)
 {
+	BtPeerMsg type;
+	guint bytes_read;
+
 	g_return_if_fail (BT_IS_PEER (peer));
 
 	g_debug ("data received for %s", peer->address_string);
@@ -435,18 +513,17 @@ bt_peer_data_received (BtPeer *peer, guint len, gpointer buf, gpointer data G_GN
 	if (buf)
 		g_string_append_len (peer->buffer, buf, (gssize) len);
 
-	guint pre_parse_len = peer->buffer->len;
-
 	switch (peer->status) {
 	case BT_PEER_STATUS_CONNECTED_IN:
 		switch (bt_peer_check_handshake (peer)) {
 		case BT_PEER_DATA_STATUS_NEED_MORE:
-			break;
+			gnet_conn_read (peer->socket);
+			return;
 
 		case BT_PEER_DATA_STATUS_INVALID:
 			// TODO: try encryption here
 			bt_peer_disconnect (peer);
-			break;
+			return;
 		
 		default:
 			g_string_erase (peer->buffer, 0, 48);
@@ -460,7 +537,8 @@ bt_peer_data_received (BtPeer *peer, guint len, gpointer buf, gpointer data G_GN
 	case BT_PEER_STATUS_CONNECTED_OUT:
 		switch (bt_peer_check_handshake (peer)) {
 		case BT_PEER_DATA_STATUS_NEED_MORE:
-			break;
+			gnet_conn_read (peer->socket);
+			return;
 
 		case BT_PEER_DATA_STATUS_INVALID:
 			// TODO: try encryption here, possibly?
@@ -480,11 +558,12 @@ bt_peer_data_received (BtPeer *peer, guint len, gpointer buf, gpointer data G_GN
 	case BT_PEER_STATUS_WAIT_PEER_ID:
 		switch (bt_peer_check_peer_id (peer)) {
 		case BT_PEER_DATA_STATUS_NEED_MORE:
-			break;
+			gnet_conn_read (peer->socket);
+			return;
 
 		case BT_PEER_DATA_STATUS_INVALID:
 			bt_peer_disconnect (peer);
-			break;
+			return;
 
 		default:
 			g_string_erase (peer->buffer, 0, 20);
@@ -498,17 +577,190 @@ bt_peer_data_received (BtPeer *peer, guint len, gpointer buf, gpointer data G_GN
 		break;
 
 	case BT_PEER_STATUS_CONNECTED:
-		switch (bt_peer_check_msg (peer)) {
+		switch (bt_peer_peek_msg_type (peer, &type)) {
 		case BT_PEER_DATA_STATUS_NEED_MORE:
-			break;
+			gnet_conn_read (peer->socket);
+			return;
 
 		case BT_PEER_DATA_STATUS_INVALID:
 			g_debug ("got illegal data from peer");
 			bt_peer_disconnect (peer);
-			break;
+			return;
 
 		default:
-			// bt_peer_check_msg does the g_string_erase to the correct length
+			switch (type)
+			{
+			case BT_PEER_MSG_CHOKE:
+				switch (bt_peer_on_choke (peer))
+				{
+				case BT_PEER_DATA_STATUS_NEED_MORE:
+					gnet_conn_read (peer->socket);
+					return;
+
+				case BT_PEER_DATA_STATUS_INVALID:
+					g_debug ("got illegal choke message from peer");
+					bt_peer_disconnect (peer);
+					return;
+
+				default:
+					g_string_erase (peer->buffer, 0, 5);
+				}
+
+				break;
+
+			case BT_PEER_MSG_UNCHOKE:
+				switch (bt_peer_on_unchoke (peer))
+				{
+				case BT_PEER_DATA_STATUS_NEED_MORE:
+					gnet_conn_read (peer->socket);
+					return;
+
+				case BT_PEER_DATA_STATUS_INVALID:
+					g_debug ("got illegal unchoke message from peer");
+					bt_peer_disconnect (peer);
+					return;
+
+				default:
+					g_string_erase (peer->buffer, 0, 5);
+				}
+
+				break;
+
+			case BT_PEER_MSG_INTERESTED:
+				switch (bt_peer_on_interested (peer))
+				{
+				case BT_PEER_DATA_STATUS_NEED_MORE:
+					gnet_conn_read (peer->socket);
+					return;
+
+				case BT_PEER_DATA_STATUS_INVALID:
+					g_debug ("got illegal interested message from peer");
+					bt_peer_disconnect (peer);
+					return;
+
+				default:
+					g_string_erase (peer->buffer, 0, 5);
+				}
+
+				break;
+
+			case BT_PEER_MSG_UNINTERESTED:
+				switch (bt_peer_on_uninterested (peer))
+				{
+				case BT_PEER_DATA_STATUS_NEED_MORE:
+					gnet_conn_read (peer->socket);
+					return;
+
+				case BT_PEER_DATA_STATUS_INVALID:
+					g_debug ("got illegal uninterested message from peer");
+					bt_peer_disconnect (peer);
+					return;
+
+				default:
+					g_string_erase (peer->buffer, 0, 5);
+				}
+
+				break;
+
+			case BT_PEER_MSG_HAVE:
+				switch (bt_peer_on_have (peer))
+				{
+				case BT_PEER_DATA_STATUS_NEED_MORE:
+					gnet_conn_read (peer->socket);
+					return;
+
+				case BT_PEER_DATA_STATUS_INVALID:
+					g_debug ("got illegal have message from peer");
+					bt_peer_disconnect (peer);
+					return;
+
+				default:
+					g_string_erase (peer->buffer, 0, 9);
+				}
+
+				break;
+
+			case BT_PEER_MSG_BITFIELD:
+				switch (bt_peer_on_bitfield (peer, &bytes_read))
+				{
+				case BT_PEER_DATA_STATUS_NEED_MORE:
+					gnet_conn_read (peer->socket);
+					return;
+
+				case BT_PEER_DATA_STATUS_INVALID:
+					g_debug ("got illegal bitfield message from peer");
+					bt_peer_disconnect (peer);
+					return;
+
+				default:
+					g_string_erase (peer->buffer, 0, bytes_read);
+				}
+
+				break;
+
+			case BT_PEER_MSG_REQUEST:
+				switch (bt_peer_on_request (peer))
+				{
+				case BT_PEER_DATA_STATUS_NEED_MORE:
+					gnet_conn_read (peer->socket);
+					return;
+
+				case BT_PEER_DATA_STATUS_INVALID:
+					g_debug ("got illegal request message from peer");
+					bt_peer_disconnect (peer);
+					return;
+
+				default:
+					g_string_erase (peer->buffer, 0, 17);
+				}
+
+				break;
+
+			case BT_PEER_MSG_PIECE:
+				switch (bt_peer_on_piece (peer, &bytes_read))
+				{
+				case BT_PEER_DATA_STATUS_NEED_MORE:
+					gnet_conn_read (peer->socket);
+					return;
+
+				case BT_PEER_DATA_STATUS_INVALID:
+					g_debug ("got illegal piece message from peer");
+					bt_peer_disconnect (peer);
+					return;
+
+				default:
+					g_string_erase (peer->buffer, 0, bytes_read);
+				}
+
+				break;
+
+			case BT_PEER_MSG_CANCEL:
+				switch (bt_peer_on_cancel (peer))
+				{
+				case BT_PEER_DATA_STATUS_NEED_MORE:
+					gnet_conn_read (peer->socket);
+					return;
+
+				case BT_PEER_DATA_STATUS_INVALID:
+					g_debug ("got illegal cancel message from peer");
+					bt_peer_disconnect (peer);
+					return;
+
+				default:
+					g_string_erase (peer->buffer, 0, 17);
+				}
+
+				break;
+
+			case BT_PEER_MSG_KEEP_ALIVE:
+				// FIXME: we should not just respond naively
+				bt_peer_send_keep_alive (peer);
+				g_debug ("peer send keep-alive");
+
+				g_string_erase (peer->buffer, 0, 4);
+				break;
+			}
+
 			break;
 		}
 
@@ -518,8 +770,10 @@ bt_peer_data_received (BtPeer *peer, guint len, gpointer buf, gpointer data G_GN
 		break;
 	}
 
-	// recurse if there is anything left in buffer after we parsed something
-	if (peer->buffer->len && peer->buffer->len < pre_parse_len)
+
+	
+	// recurse if there is anything left in buffer
+	if (peer->buffer->len)
 		bt_peer_data_received (peer, 0, NULL, NULL);
 	else
 		gnet_conn_read (peer->socket);
