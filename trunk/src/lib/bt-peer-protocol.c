@@ -382,6 +382,9 @@ bt_peer_on_bitfield (BtPeer* peer, guint* bytes_read)
 	if ((msg_len - 1) * 8 < bt_torrent_get_num_pieces (peer->torrent))
 		return BT_PEER_DATA_STATUS_INVALID;
 
+	if (msg_len > peer->buffer->len)
+		return BT_PEER_DATA_STATUS_NEED_MORE;
+
 	peer->bitfield = g_memdup (peer->buffer->str + 5, msg_len - 1);
 	g_debug ("peer sent bitfield");
 
