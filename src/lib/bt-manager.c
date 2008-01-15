@@ -350,6 +350,7 @@ static void
 bt_manager_class_init (BtManagerClass *manager_class)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (manager_class);
+	gchar* default_id = bt_create_peer_id ();
 	GParamSpec *pspec;
 	GClosure *closure;
 	GType params[2];
@@ -373,7 +374,7 @@ bt_manager_class_init (BtManagerClass *manager_class)
 	                          G_PARAM_READWRITE | G_PARAM_STATIC_NAME | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NICK | G_PARAM_CONSTRUCT);
 
 	g_object_class_install_property (object_class, BT_MANAGER_PROPERTY_PORT, pspec);
-	
+
 	/**
 	 * BtManager:peer-id:
 	 *
@@ -382,8 +383,10 @@ bt_manager_class_init (BtManagerClass *manager_class)
 	pspec = g_param_spec_string ("peer-id",
 	                             "peer id",
 	                             "The peer id to use for torrent connections",
-	                             bt_create_peer_id (),
+	                             default_id,
 	                             G_PARAM_READWRITE | G_PARAM_STATIC_NAME | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NICK | G_PARAM_CONSTRUCT);
+
+	g_free (default_id);
 
 	g_object_class_install_property (object_class, BT_MANAGER_PROPERTY_PEER_ID, pspec);
 	
