@@ -35,56 +35,6 @@ typedef struct _BtPeerClass BtPeerClass;
 #include "bt-torrent.h"
 #include "bt-manager.h"
 
-typedef enum {
-	BT_PEER_STATUS_DISCONNECTED,
-	BT_PEER_STATUS_CONNECTED_OUT,
-	BT_PEER_STATUS_CONNECTED_IN,
-	BT_PEER_STATUS_WAIT_PEER_ID,
-	BT_PEER_STATUS_CONNECTED,
-	BT_PEER_STATUS_IDLE
-} BtPeerStatus;
-
-struct _BtPeer {
-	GObject      parent;
-	
-	/* the BtManager for this peer */
-	BtManager   *manager;
-	
-	/* the torrent that this peer is serving */
-	BtTorrent   *torrent;
-	
-	/* the internet address of this peer */
-	GInetAddr   *address;
-	
-	/* the address as a string address:port */
-	gchar       *address_string;
-	
-	/* the network connection */
-	GConn       *socket;
-	
-	/* the actual tcp socket */
-	GTcpSocket  *tcp_socket;
-
-	gchar       *peer_id;
-	
-	gboolean     peer_choking;
-	gboolean     peer_interested;
-	gboolean     interested;
-	gboolean     choking;
-
-	gchar       *bitfield;
-
-	GString     *buffer;
-	
-	void       (*encryption_func) (BtPeer *peer, guint len, gpointer buf);
-	
-	BtPeerStatus status;
-};
-
-struct _BtPeerClass {
-	GObjectClass parent;
-};
-
 GType   bt_peer_get_type ();
 
 BtPeer *bt_peer_new_incoming (BtManager *manager, GTcpSocket *socket);

@@ -20,12 +20,13 @@
 
 #include <string.h>
 
+#include "bt-peer-private.h"
 #include "bt-peer-protocol.h"
 #include "bt-peer-encryption.h"
 #include "bt-utils.h"
 
-// defines for fixed length messages, bitfield and piece are of variable lengths
-#define BT_PEER_MSG_LENGTH_HANDSHAKE 48
+// defines for fixed length messages, the 4-byte length prefix included
+// bitfield and piece messages are of variable lengths
 #define BT_PEER_MSG_LENGTH_CHOKE 5
 #define BT_PEER_MSG_LENGTH_UNCHOKE 5
 #define BT_PEER_MSG_LENGTH_INTERESTED 5
@@ -33,13 +34,8 @@
 #define BT_PEER_MSG_LENGTH_HAVE 9
 #define BT_PEER_MSG_LENGTH_REQUEST 17
 #define BT_PEER_MSG_LENGTH_CANCEL 17
+#define BT_PEER_MSG_LENGTH_DHT_PORT 7
 #define BT_PEER_MSG_LENGTH_KEEP_ALIVE 4
-
-typedef enum {
-	BT_PEER_DATA_STATUS_NEED_MORE,
-	BT_PEER_DATA_STATUS_INVALID,
-	BT_PEER_DATA_STATUS_SUCCESS
-} BtPeerDataStatus;
 
 typedef enum {
 	BT_PEER_MSG_CHOKE,
@@ -51,6 +47,7 @@ typedef enum {
 	BT_PEER_MSG_REQUEST,
 	BT_PEER_MSG_PIECE,
 	BT_PEER_MSG_CANCEL,
+	BT_PEER_MSG_DHT_PORT,
 	BT_PEER_MSG_KEEP_ALIVE // helper, not really a protocol message
 } BtPeerMsg;
 
@@ -64,9 +61,8 @@ static BtPeerDataStatus bt_peer_on_bitfield (BtPeer *peer, guint *bytes_read);
 static BtPeerDataStatus bt_peer_on_request (BtPeer *peer, guint *bytes_read);
 static BtPeerDataStatus bt_peer_on_piece (BtPeer *peer, guint *bytes_read);
 static BtPeerDataStatus bt_peer_on_cancel (BtPeer *peer, guint *bytes_read);
+static BtPeerDataStatus bt_peer_on_dht_port (BtPeer* peer, guint *bytes_read);
 static BtPeerDataStatus bt_peer_on_keep_alive (BtPeer *peer, guint *bytes_read);
-
-typedef BtPeerDataStatus (*BtPeerMsgFunc) (BtPeer *peer, guint* bytes_read);
 
 static BtPeerMsgFunc handler_lookup_table[] = {
 	&bt_peer_on_choke,
@@ -78,6 +74,8 @@ static BtPeerMsgFunc handler_lookup_table[] = {
 	&bt_peer_on_request,
 	&bt_peer_on_piece,
 	&bt_peer_on_cancel,
+	&bt_peer_on_dht_port,
+	NULL, // no global handler for extensions
 	&bt_peer_on_keep_alive
 };
 
@@ -391,7 +389,7 @@ bt_peer_on_have (BtPeer* peer, guint *bytes_read)
 	msg_len = g_ntohl (*((guint32*)(peer->buffer->str)));
 
 	// this message is fixed length
-	if (msg_len != 9)
+	if (msg_len != 5)
 		return BT_PEER_DATA_STATUS_INVALID;
 
 	piece = g_ntohl (*((guint32*)(peer->buffer->str + 5)));
@@ -451,6 +449,10 @@ bt_peer_on_request (BtPeer* peer, guint *bytes_read)
 	length = g_htonl (*(guint32*)(peer->buffer->str + 13));
 	g_debug ("peer requested piece %i, begin %i, length %i", piece, begin, length);
 
+	// mainline disconnects requests greater than 2^17, so do we
+	if (length > 131072)
+		return BT_PEER_DATA_STATUS_INVALID;
+
 	*bytes_read = 17;
 
 	return BT_PEER_DATA_STATUS_SUCCESS;
@@ -480,6 +482,8 @@ bt_peer_on_piece (BtPeer* peer, guint* bytes_read)
 
 	if (msg_len > peer->buffer->len)
 		return BT_PEER_DATA_STATUS_NEED_MORE;
+
+	// FIXME: make sure we previously requested the incoming block
 
 	piece = g_htonl (*(guint*)(peer->buffer->str + 5));
 	begin = g_htonl (*(guint*)(peer->buffer->str + 9));
@@ -518,6 +522,32 @@ bt_peer_on_cancel (BtPeer* peer, guint *bytes_read)
 }
 
 static BtPeerDataStatus
+bt_peer_on_dht_port (BtPeer* peer, guint *bytes_read)
+{
+	guint32 msg_len;
+	guint16 port;
+
+	if (peer->buffer->len < 7)
+		return BT_PEER_DATA_STATUS_NEED_MORE;
+
+	g_return_val_if_fail (peer->buffer->str[4] == BT_PEER_MSG_DHT_PORT, BT_PEER_DATA_STATUS_INVALID);
+
+	msg_len = g_ntohl (*((guint32*)(peer->buffer->str)));
+
+	// this message is fixed length
+	if (msg_len != 3)
+		return BT_PEER_DATA_STATUS_INVALID;
+
+	port = g_ntohl (*((guint16*)(peer->buffer->str + 5)));
+
+	g_debug ("peer sent dht port %i", port);
+
+	*bytes_read = 7;
+
+	return BT_PEER_DATA_STATUS_SUCCESS;
+}
+
+static BtPeerDataStatus
 bt_peer_on_keep_alive (BtPeer* peer, guint *bytes_read)
 {
 	guint32 msg_len;
@@ -526,6 +556,7 @@ bt_peer_on_keep_alive (BtPeer* peer, guint *bytes_read)
 		return BT_PEER_DATA_STATUS_NEED_MORE;
 
 	msg_len = g_ntohl (*((guint32*)(peer->buffer->str)));
+
 	if (msg_len != 0)
 		return BT_PEER_DATA_STATUS_INVALID;
 
@@ -554,8 +585,8 @@ bt_peer_peek_msg_type (BtPeer* peer, BtPeerMsg* type)
 	if (peer->buffer->len < 5)
 		return BT_PEER_DATA_STATUS_NEED_MORE;
 
-	// only 0 through 8 are valid protocol messages
-	if (peer->buffer->str[4] > 8)
+	// only 0 through 8 are valid protocol messages, 9 is a mainline extension
+	if (peer->buffer->str[4] > 9)
 		return BT_PEER_DATA_STATUS_INVALID;
 
 	*type = (BtPeerMsg) peer->buffer->str[4];
@@ -568,24 +599,26 @@ bt_peer_handle_msg (BtPeer* peer, guint* bytes_read)
 {
 	BtPeerDataStatus status;
 	BtPeerMsg type;
-	BtPeerMsgFunc handler;
+	BtPeerMsgFunc handler = NULL;
 
 	status = bt_peer_peek_msg_type (peer, &type);
 
-	if (status != BT_PEER_DATA_STATUS_SUCCESS)
-		return status;
-
-	// special case, no handler for keep alive messages
-	if (type == BT_PEER_MSG_KEEP_ALIVE)
+	switch (status)
 	{
-		g_debug ("peer sent keep alive");
+	case BT_PEER_DATA_STATUS_SUCCESS:
+		handler = handler_lookup_table[type];
+		break;
 
-		*bytes_read = 4;
+	case BT_PEER_DATA_STATUS_INVALID:
+		// try extension handler if we have one
+		if (peer->extension_func != NULL)
+			return peer->extension_func (peer, bytes_read);
+		break;
 
-		return BT_PEER_DATA_STATUS_SUCCESS;
+	default:
+		return status;
+		
 	}
-
-	handler = handler_lookup_table[type];
 
 	g_return_val_if_fail (handler != NULL, BT_PEER_DATA_STATUS_INVALID);
 
