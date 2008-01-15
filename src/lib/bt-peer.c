@@ -19,6 +19,7 @@
  */
 
 #include "bt-peer.h"
+#include "bt-peer-private.h"
 #include "bt-peer-protocol.h"
 #include "bt-torrent.h"
 #include "bt-utils.h"
@@ -236,6 +237,7 @@ bt_peer_init (BtPeer *peer)
 	peer->socket = NULL;
 	peer->address = NULL;
 	peer->encryption_func = NULL;
+	peer->extension_func = NULL;
 	peer->buffer = g_string_sized_new (1024);
 
 	return;
