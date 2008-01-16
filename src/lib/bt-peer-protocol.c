@@ -326,10 +326,6 @@ bt_peer_on_unchoke (BtPeer* peer, guint *bytes_read)
 	peer->peer_choking = FALSE;
 	g_debug ("unchoked by peer");
 
-	guint i = 0;
-	for (i = 0; i < bt_torrent_get_num_blocks (peer->torrent); i++)
-		bt_peer_send_request (peer, i);
-
 	*bytes_read = 5;
 
 	return BT_PEER_DATA_STATUS_SUCCESS;
@@ -708,8 +704,8 @@ bt_peer_data_received (BtPeer *peer, guint len, gpointer buf, gpointer data G_GN
 			g_string_erase (peer->buffer, 0, 20);
 			peer->status = BT_PEER_STATUS_CONNECTED;
 			// for debuging:
-			bt_peer_interest (peer);
-			bt_peer_unchoke (peer);
+			// bt_peer_interest (peer);
+			// bt_peer_unchoke (peer);
 			break;
 		}
 
