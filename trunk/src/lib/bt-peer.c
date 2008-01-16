@@ -65,6 +65,10 @@ bt_peer_disconnect_source (gpointer data)
 
 	gnet_conn_delete (peer->socket);
 
+	// unreference if not associated with a torrent
+	if (!peer->torrent)
+		g_object_unref (G_OBJECT (peer));
+
 	return FALSE;
 }
 
@@ -128,10 +132,12 @@ bt_peer_dispose (GObject *object)
 
 	if (self->manager == NULL)
 		return;
-	
-	g_object_unref (self->manager);
-	
+
+	bt_remove_weak_pointer (G_OBJECT (self->manager), (gpointer)&self->manager);
+	bt_remove_weak_pointer (G_OBJECT (self->torrent), (gpointer)&self->torrent);
+
 	self->manager = NULL;
+	self->torrent = NULL;
 	
 	gnet_inetaddr_unref (self->address);
 
@@ -155,7 +161,9 @@ bt_peer_set_property (GObject *object, guint property, const GValue *value, GPar
 
 	switch (property) {
 	case BT_PEER_PROPERTY_MANAGER:
-		self->manager = BT_MANAGER (g_value_dup_object (value));
+		bt_remove_weak_pointer (G_OBJECT (self->manager), (gpointer)&self->manager);
+		self->manager = BT_MANAGER (g_value_get_pointer (value));
+		bt_add_weak_pointer (G_OBJECT (self->manager), (gpointer)&self->manager);
 		break;
 		
 	case BT_PEER_PROPERTY_ADDRESS:
@@ -167,7 +175,9 @@ bt_peer_set_property (GObject *object, guint property, const GValue *value, GPar
 		break;
 
 	case BT_PEER_PROPERTY_TORRENT:
-		self->torrent = BT_TORRENT (g_value_dup_object (value));
+		bt_remove_weak_pointer (G_OBJECT (self->torrent), (gpointer)&self->torrent);
+		self->torrent = BT_TORRENT (g_value_get_pointer (value));
+		bt_add_weak_pointer (G_OBJECT (self->torrent), (gpointer)&self->torrent);
 		break;
 	
 	default:
@@ -184,7 +194,8 @@ bt_peer_get_property (GObject *object, guint property, GValue *value, GParamSpec
 	
 	switch (property) {
 	case BT_PEER_PROPERTY_TORRENT:
-		self->torrent = BT_TORRENT (g_value_dup_object (value));
+		// FIXME: this might leave a dangling pointer in value
+		g_value_set_pointer (value, self->torrent);
 		break;
 	
 	default:
@@ -262,10 +273,9 @@ bt_peer_class_init (BtPeerClass *peer_class)
 	 *
 	 * The #BtTorrent that this peer belongs to.
 	 */
-	pspec = g_param_spec_object ("torrent",
+	pspec = g_param_spec_pointer ("torrent",
 	                             "the torrent this peer is serving",
 	                             "The torrent that this peer is transmitting data for.",
-	                             BT_TYPE_TORRENT,
 	                             G_PARAM_READWRITE | G_PARAM_STATIC_NAME | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NICK | G_PARAM_CONSTRUCT_ONLY);
 	
 	g_object_class_install_property (object_class, BT_PEER_PROPERTY_TORRENT, pspec);
@@ -275,10 +285,9 @@ bt_peer_class_init (BtPeerClass *peer_class)
 	 *
 	 * The #Btmanager that this peer will run under.
 	 */
-	pspec = g_param_spec_object ("manager",
+	pspec = g_param_spec_pointer ("manager",
 	                             "the manager for this peer",
 	                             "The manager that this peer will run under.",
-	                             BT_TYPE_MANAGER,
 	                             G_PARAM_READWRITE | G_PARAM_STATIC_NAME | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NICK | G_PARAM_CONSTRUCT_ONLY);
 	
 	g_object_class_install_property (object_class, BT_PEER_PROPERTY_MANAGER, pspec);

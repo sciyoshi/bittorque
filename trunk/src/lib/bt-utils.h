@@ -58,4 +58,8 @@ gchar   *bt_client_name_from_id (const gchar *id);
 
 gchar   *bt_size_to_string (guint64 size);
 
+void     bt_add_weak_pointer (GObject* obj, gpointer pointer_to_weak_pointer);
+
+void     bt_remove_weak_pointer (GObject* obj, gpointer pointer_to_weak_pointer);
+
 #endif

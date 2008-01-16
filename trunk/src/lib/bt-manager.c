@@ -276,13 +276,20 @@ bt_manager_set_peer_id (BtManager *manager, const gchar *peer_id)
 }
 
 static void
+bt_manager_clear_torrents (gpointer key G_GNUC_UNUSED, gpointer value, gpointer user_data G_GNUC_UNUSED)
+{
+	g_object_unref (G_OBJECT (value));
+}
+
+static void
 bt_manager_dispose (GObject *object)
 {
 	BtManager *self = BT_MANAGER (object);
 	
 	if (self->torrents == NULL)
 		return;
-	
+
+	g_hash_table_foreach (self->torrents, &bt_manager_clear_torrents, NULL);
 	g_hash_table_unref (self->torrents);
 	
 	self->torrents = NULL;

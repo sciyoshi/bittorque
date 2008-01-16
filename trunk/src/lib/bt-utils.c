@@ -265,3 +265,24 @@ bt_size_to_string (guint64 size)
 
 	return g_strdup_printf ("%.2f GB", ((gdouble) (size / (1048576))) / 1024);
 }
+
+/* workaround for -fstrict-aliasing */
+void
+bt_add_weak_pointer (GObject* obj, gpointer pointer_to_weak_pointer)
+{
+	if (obj == NULL)
+		return;
+
+	g_object_add_weak_pointer (obj, (gpointer*)pointer_to_weak_pointer);
+}
+
+/* workaround for -fstrict-aliasing */
+void
+bt_remove_weak_pointer (GObject* obj, gpointer pointer_to_weak_pointer)
+{
+	if (obj == NULL)
+		return;
+
+	g_object_remove_weak_pointer (obj, (gpointer*)pointer_to_weak_pointer);
+}
+
