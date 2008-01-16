@@ -78,6 +78,7 @@
                         <property name="short_label" translatable="yes">_Quit</property>
                         <property name="tooltip" translatable="yes">Quit BitTorque</property>
                         <property name="stock_id">gtk-quit</property>
+                        <signal handler="on_quit_menuitem_activate" name="activate"/>
                     </object>
                 </child>
                 <child>
