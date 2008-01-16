@@ -255,7 +255,10 @@ bt_io_check_piece_hash (BtIO *io, guint piece)
 static void
 bt_io_clear_channels (gpointer key G_GNUC_UNUSED, gpointer value, gpointer user_data G_GNUC_UNUSED)
 {
-	g_object_unref (G_OBJECT (value));
+	GIOChannel* channel = (GIOChannel*)value;
+
+	g_io_channel_flush (channel, NULL);
+	g_io_channel_unref (channel);
 }
 
 static void
