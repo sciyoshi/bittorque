@@ -70,6 +70,8 @@ guint                 bt_torrent_get_num_blocks (BtTorrent *torrent);
 
 guint                 bt_torrent_get_block_size (BtTorrent *torrent);
 
+guint                 bt_torrent_get_block_size_extended (BtTorrent *torrent, guint block);
+
 const BtTorrentFile  *bt_torrent_get_file (BtTorrent *torrent, guint index);
 
 guint                 bt_torrent_get_num_files (BtTorrent *torrent);

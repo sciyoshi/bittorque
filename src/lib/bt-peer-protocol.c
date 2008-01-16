@@ -110,19 +110,17 @@ bt_peer_send_handshake (BtPeer *peer)
 }
 
 static guint
-bt_peer_get_piece_info (BtPeer* peer, guint block, guint* begin, guint* length)
+bt_peer_get_piece_info (BtPeer* peer, guint block, guint32* begin, guint32* length)
 {
-	guint blocks_per_piece = bt_torrent_get_num_blocks (peer->torrent) /
-		bt_torrent_get_num_pieces (peer->torrent);
-	guint pos_in_piece = block % blocks_per_piece;
+	guint piece = block * bt_torrent_get_block_size (peer->torrent) / bt_torrent_get_piece_length (peer->torrent);
 
 	if (begin)
-		*begin = pos_in_piece * bt_torrent_get_block_size (peer->torrent);
+		*begin = block * bt_torrent_get_block_size (peer->torrent) - piece * bt_torrent_get_piece_length (peer->torrent);
 
 	if (length)
-		*length = bt_torrent_get_block_size (peer->torrent);
+		*length = bt_torrent_get_block_size_extended (peer->torrent, block);
 
-	return block / blocks_per_piece;
+	return piece;
 }
 
 void
@@ -135,7 +133,8 @@ bt_peer_send_request (BtPeer *peer, guint block)
 
 	buf[4] = BT_PEER_MSG_REQUEST;
 
-	guint piece, begin, length;
+	guint piece;
+	guint32 begin, length;
 	piece = g_htonl (bt_peer_get_piece_info (peer, block, &begin, &length));
 
 	g_memmove(buf + 5, &piece, 4);
@@ -327,6 +326,10 @@ bt_peer_on_unchoke (BtPeer* peer, guint *bytes_read)
 	peer->peer_choking = FALSE;
 	g_debug ("unchoked by peer");
 
+	guint i = 0;
+	for (i = 0; i < bt_torrent_get_num_blocks (peer->torrent); i++)
+		bt_peer_send_request (peer, i);
+
 	*bytes_read = 5;
 
 	return BT_PEER_DATA_STATUS_SUCCESS;
@@ -494,9 +497,9 @@ bt_peer_on_piece (BtPeer* peer, guint* bytes_read)
 
 	piece = g_htonl (*(guint*)(peer->buffer->str + 5));
 	begin = g_htonl (*(guint*)(peer->buffer->str + 9));
-	data = g_memdup (peer->buffer->str + 13, msg_len - 1);
+	data = g_memdup (peer->buffer->str + 13, msg_len - 9);
 
-	bt_io_write (peer->torrent->io, piece, begin, msg_len - 14, data);
+	bt_io_write (peer->torrent->io, piece, begin, msg_len - 9, data);
 
 	g_free (data);
 
@@ -705,8 +708,8 @@ bt_peer_data_received (BtPeer *peer, guint len, gpointer buf, gpointer data G_GN
 			g_string_erase (peer->buffer, 0, 20);
 			peer->status = BT_PEER_STATUS_CONNECTED;
 			// for debuging:
-			// bt_peer_interest (peer);
-			// bt_peer_unchoke (peer);
+			bt_peer_interest (peer);
+			bt_peer_unchoke (peer);
 			break;
 		}
 
