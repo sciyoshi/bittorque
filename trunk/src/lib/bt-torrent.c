@@ -775,6 +775,32 @@ bt_torrent_get_block_size (BtTorrent *torrent)
 }
 
 /**
+ * bt_torrent_get_block_size_extended:
+ * @torrent: the torrent
+ * @block: the block index
+ *
+ * Get the block size for the block index.
+ *
+ * Returns: the block size for the block index as a guint.
+ * Always the same as @bt_torrent_get_block_size except for the last block,
+ * which might be slighty less.
+ */
+guint
+bt_torrent_get_block_size_extended (BtTorrent *torrent, guint block)
+{
+	BtTorrentPrivate *priv;
+
+	g_return_val_if_fail (BT_IS_TORRENT (torrent), 0);
+
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	if (block == (priv->num_blocks - 1))
+		return priv->size - ((priv->num_blocks - 1) * priv->block_size);
+	else
+		return priv->block_size;
+}
+
+/**
  * bt_torrent_get_file:
  * @torrent: the torrent
  * @index: the file index
