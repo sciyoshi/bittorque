@@ -338,6 +338,8 @@ main (int argc, char *argv[])
 
 	gtk_main ();
 
+	gtk_list_store_clear (bittorque.torrents_list);
+
 	g_object_unref (bittorque.manager);
 
 	return 0;
