@@ -23,8 +23,9 @@
 #include "bt-torrent.h"
 #include "bt-bencode.h"
 #include "bt-manager.h"
-#include "bt-torrent-file.h"
 #include "bt-utils.h"
+
+#define BT_TORRENT_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE ((obj), BT_TYPE_TORRENT, BtTorrentPrivate))
 
 enum {
 	BT_TORRENT_PROPERTY_NAME = 1,
@@ -39,12 +40,12 @@ enum {
 
 static guint bt_torrent_signals[BT_TORRENT_NUM_SIGNALS] = {0, };
 
-struct _BtTorrent {
-	GObject    parent;
+typedef struct _BtTorrentPrivate BtTorrentPrivate;
 
+struct _BtTorrentPrivate {
 	/* manager for this torrent */	
 	BtManager *manager;
-	
+
 	/* name of this torrent */
 	gchar     *name;
 	
@@ -80,7 +81,10 @@ struct _BtTorrent {
 	
 	/* bitfield of pieces that we have */
 	gchar     *bitfield;
-	
+
+	/* array of 20-byte hashes for each piece */
+	gchar     *pieces;
+
 	/* an array of files in this torrent */
 	GArray    *files;
 	
@@ -94,15 +98,12 @@ struct _BtTorrent {
 	gchar     *tracker_id;
 };
 
-struct _BtTorrentClass {
-	GObjectClass parent;
-};
-
 G_DEFINE_TYPE (BtTorrent, bt_torrent, G_TYPE_OBJECT)
 
 static gboolean
 bt_torrent_announce_http_parse_response (BtTorrent *torrent, gchar *buf, gsize len)
 {
+	BtTorrentPrivate *priv;
 	GError *error;
 	BtBencode *response, *failure, *warning, *interval, *tracker_id, *peers;
 
@@ -132,23 +133,25 @@ bt_torrent_announce_http_parse_response (BtTorrent *torrent, gchar *buf, gsize l
 
 	interval = bt_bencode_lookup (response, "interval");
 
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
 	if (interval && interval->type == BT_BENCODE_TYPE_INT) {
-		torrent->tracker_interval = interval->value;
-		g_debug ("tracker announce interval: %d", torrent->tracker_interval);
+		priv->tracker_interval = interval->value;
+		g_debug ("tracker announce interval: %d", priv->tracker_interval);
 	}
 
 	interval = bt_bencode_lookup (response, "min interval");
 
 	if (interval && interval->type == BT_BENCODE_TYPE_INT) {
-		torrent->tracker_min_interval = interval->value;
-		g_debug ("tracker announce minimum interval: %d", torrent->tracker_min_interval);
+		priv->tracker_min_interval = interval->value;
+		g_debug ("tracker announce minimum interval: %d", priv->tracker_min_interval);
 	}
 
 	tracker_id = bt_bencode_lookup (response, "tracker id");
 
 	if (tracker_id && tracker_id->type == BT_BENCODE_TYPE_STRING) {
-		torrent->tracker_id = g_strdup (tracker_id->string->str);
-		g_debug ("tracker id: %s", torrent->tracker_id);
+		priv->tracker_id = g_strdup (tracker_id->string->str);
+		g_debug ("tracker id: %s", priv->tracker_id);
 	}
 
 	peers = bt_bencode_lookup (response, "peers");
@@ -170,11 +173,11 @@ bt_torrent_announce_http_parse_response (BtTorrent *torrent, gchar *buf, gsize l
 				
 				gnet_inetaddr_set_port (address, g_ntohs (*((gushort *) (peers->string->str + i * 6 + 4))));
 				
-				peer = bt_peer_new_outgoing (torrent->manager, torrent, address);
+				peer = bt_peer_new_outgoing (priv->manager, torrent, address);
 				
 				bt_torrent_add_peer (torrent, peer);
 				
-				g_object_unref (peer);
+				g_object_unref (G_OBJECT (peer));
 				gnet_inetaddr_unref (address);
 			}
 		} else if (peers->type == BT_BENCODE_TYPE_LIST) {
@@ -202,11 +205,11 @@ bt_torrent_announce_http_parse_response (BtTorrent *torrent, gchar *buf, gsize l
 
 				gnet_inetaddr_set_port (address, port->value);
 
-				peer = bt_peer_new_outgoing (torrent->manager, torrent, address);
+				peer = bt_peer_new_outgoing (priv->manager, torrent, address);
 				
 				bt_torrent_add_peer (torrent, peer);
 				
-				g_object_unref (peer);
+				g_object_unref (G_OBJECT (peer));
 				gnet_inetaddr_unref (address);
 			}
 		}
@@ -226,14 +229,18 @@ bt_torrent_announce_http_parse_response (BtTorrent *torrent, gchar *buf, gsize l
 void
 bt_torrent_tracker_stop_announce (BtTorrent *torrent)
 {
+	BtTorrentPrivate *priv;
+
 	g_return_if_fail (BT_IS_TORRENT (torrent));
 
-	if (torrent->tracker_connection == NULL)
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	if (priv->tracker_connection == NULL)
 		return;
 	
-	gnet_conn_http_delete (torrent->tracker_connection);
+	gnet_conn_http_delete (priv->tracker_connection);
 	
-	torrent->tracker_connection = NULL;
+	priv->tracker_connection = NULL;
 	
 	return;
 }
@@ -255,6 +262,7 @@ bt_torrent_tracker_stop_announce_source (gpointer data)
 static void
 bt_torrent_tracker_http_response (GConnHttp *connection G_GNUC_UNUSED, GConnHttpEvent *event, gpointer data)
 {
+	BtTorrentPrivate *priv;
 	GConnHttpEventResponse *event_response;
 	GConnHttpEventData *event_data;
 	BtTorrent *torrent;
@@ -262,8 +270,9 @@ bt_torrent_tracker_http_response (GConnHttp *connection G_GNUC_UNUSED, GConnHttp
 	gsize len;
 	
 	g_return_if_fail (data != NULL && event != NULL);
-	
+
 	torrent = BT_TORRENT (data);
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
 	
 	switch (event->type) {
 	case GNET_CONN_HTTP_RESOLVED:
@@ -297,27 +306,30 @@ bt_torrent_tracker_http_response (GConnHttp *connection G_GNUC_UNUSED, GConnHttp
 static void
 bt_torrent_tracker_announce_single (BtTorrent *torrent, const gchar *tracker)
 {
+	BtTorrentPrivate *priv;
 	gchar *query, *tmp;
 
 	g_return_if_fail (BT_IS_TORRENT (torrent));
 	g_return_if_fail (tracker != NULL);
 
-	if (torrent->tracker_connection != NULL) {
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	if (priv->tracker_connection != NULL) {
 		g_debug ("already trying to update tracker");
 		return;
 	}
 
 	/* build query */
-	tmp = bt_url_encode (torrent->infohash, 20);
+	tmp = bt_url_encode (priv->infohash, 20);
 
 	query = g_strdup_printf ("%s?info_hash=%s&peer_id=%s&port=%d&uploaded=%d&downloaded=%d&left=%" G_GINT64_FORMAT "&compact=1&no_peer_id=1&event=%s&numwant=%d",
-	                         torrent->announce,
+	                         priv->announce,
 	                         tmp,
-	                         bt_manager_get_peer_id (torrent->manager),
-	                         bt_manager_get_port (torrent->manager),
+	                         bt_manager_get_peer_id (priv->manager),
+	                         bt_manager_get_port (priv->manager),
 	                         0,
 	                         0,
-	                         torrent->size,
+	                         priv->size,
 	                         "started",
 	                         30);
 
@@ -325,17 +337,18 @@ bt_torrent_tracker_announce_single (BtTorrent *torrent, const gchar *tracker)
 
 	g_free (tmp);
 
-	torrent->tracker_connection = gnet_conn_http_new ();
+	priv->tracker_connection = gnet_conn_http_new ();
 
-	if (!gnet_conn_http_set_escaped_uri (torrent->tracker_connection, query)) {
-		gnet_conn_http_delete (torrent->tracker_connection);
-		torrent->tracker_connection = NULL;
+	if (!gnet_conn_http_set_escaped_uri (priv->tracker_connection, query)) {
+		gnet_conn_http_delete (priv->tracker_connection);
+		priv->tracker_connection = NULL;
 		g_warning ("could not accept uri");
-		return;
 	}
+	else
+		gnet_conn_http_run_async (priv->tracker_connection, bt_torrent_tracker_http_response, torrent);
 
-	gnet_conn_http_run_async (torrent->tracker_connection, bt_torrent_tracker_http_response, torrent);
-	
+	g_free (query);
+
 	return;
 }
 
@@ -348,14 +361,19 @@ bt_torrent_tracker_announce_single (BtTorrent *torrent, const gchar *tracker)
 void
 bt_torrent_tracker_announce (BtTorrent *torrent)
 {
+	BtTorrentPrivate *priv;
+
 	g_return_if_fail (BT_IS_TORRENT (torrent));
 
-	bt_torrent_tracker_announce_single (torrent, torrent->announce);
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	bt_torrent_tracker_announce_single (torrent, priv->announce);
 }
 
 static gboolean
 bt_torrent_parse_file (BtTorrent *torrent, const gchar *filename, GError **error)
 {
+	BtTorrentPrivate *priv;
 	BtBencode *metainfo, *info, *announce, *announce_list, *name, *length, *files, *pieces, *piece_length;
 	gchar *contents;
 	gsize len;
@@ -386,13 +404,15 @@ bt_torrent_parse_file (BtTorrent *torrent, const gchar *filename, GError **error
 	if (!name || name->type != BT_BENCODE_TYPE_STRING)
 		goto cleanup;
 
-	torrent->name = g_strdup (name->string->str);
-	g_debug ("torrent name: %s", torrent->name);
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	priv->name = g_strdup (name->string->str);
+	g_debug ("torrent name: %s", priv->name);
 
 	/* check the info hash of this torrent */
-	torrent->infohash = bt_get_infohash (info);
-	torrent->infohash_string = bt_hash_to_string (torrent->infohash);
-	g_debug ("torrent info hash: %s", torrent->infohash_string);
+	priv->infohash = bt_get_infohash (info);
+	priv->infohash_string = bt_hash_to_string (priv->infohash);
+	g_debug ("torrent info hash: %s", priv->infohash_string);
 
 	/* find out how to announce to the tracker(s) */
 	/* TODO: PROTOCOL: should we be more lenient about missing announce if there is an announce-list? */
@@ -402,15 +422,15 @@ bt_torrent_parse_file (BtTorrent *torrent, const gchar *filename, GError **error
 	if (announce == NULL)
 		goto cleanup;
 
-	torrent->announce = g_strdup (announce->string->str);
+	priv->announce = g_strdup (announce->string->str);
 
-	g_debug ("torrent announce url: %s", torrent->announce);
+	g_debug ("torrent announce url: %s", priv->announce);
 
 	if (announce_list) {
 		/* the announce-list is a list of lists of strings (doubly nested) */
 		GSList *i;
 
-		torrent->announce_list = NULL;
+		priv->announce_list = NULL;
 
 		if (announce_list->type != BT_BENCODE_TYPE_LIST)
 			goto cleanup;
@@ -440,10 +460,10 @@ bt_torrent_parse_file (BtTorrent *torrent, const gchar *filename, GError **error
 
 			/* add the tier to the announce list */
 			list = g_slist_reverse (list);
-			torrent->announce_list = g_slist_prepend (torrent->announce_list, list);
+			priv->announce_list = g_slist_prepend (priv->announce_list, list);
 		}
 
-		torrent->announce_list = g_slist_reverse (torrent->announce_list);
+		priv->announce_list = g_slist_reverse (priv->announce_list);
 	}
 
 	/* get and check other keys in the info dict */
@@ -452,7 +472,8 @@ bt_torrent_parse_file (BtTorrent *torrent, const gchar *filename, GError **error
 	piece_length = bt_bencode_lookup (info, "piece length");
 	pieces = bt_bencode_lookup (info, "pieces");
 
-	if (!pieces || pieces->type != BT_BENCODE_TYPE_STRING)
+	if (!pieces || pieces->type != BT_BENCODE_TYPE_STRING
+		|| (pieces->string->len % 20) != 0)
 		goto cleanup;
 	if ((length && files) || (!length && !files))
 		goto cleanup;
@@ -462,22 +483,22 @@ bt_torrent_parse_file (BtTorrent *torrent, const gchar *filename, GError **error
 		|| (files && files->type != BT_BENCODE_TYPE_LIST))
 		goto cleanup;
 
-	torrent->piece_length = (guint32) piece_length->value;
+	priv->piece_length = (guint32) piece_length->value;
 
 	if (length) {
 		/* this torrent is one single file */
-		BtTorrentFile file = {g_strdup (torrent->name), length->value, 0, 0};
+		BtTorrentFile file = {g_strdup (priv->name), length->value, 0, 0};
 
-		torrent->size = length->value;
+		priv->size = length->value;
 
-		g_array_append_val (torrent->files, file);
+		g_array_append_val (priv->files, file);
 	}
 
 	if (files) {
 		/* we have multiple files in the torrent, so loop through them */
 		GSList *i;
 
-		torrent->size = 0;
+		priv->size = 0;
 
 		for (i = files->list; i != NULL; i = i->next) {
 			BtBencode *entry, *length, *path;
@@ -507,7 +528,7 @@ bt_torrent_parse_file (BtTorrent *torrent, const gchar *filename, GError **error
 				path_strv[k++] = bt_bencode_slitem (j)->string->str;
 			}
 
-			torrent->size += length->value;
+			priv->size += length->value;
 			full_path = g_build_filenamev (path_strv);
 			g_free (path_strv);
 			g_debug ("%s", full_path);
@@ -515,19 +536,21 @@ bt_torrent_parse_file (BtTorrent *torrent, const gchar *filename, GError **error
 			file.size = length->value;
 			file.name = full_path;
 
-			g_array_append_val (torrent->files, file);
+			g_array_append_val (priv->files, file);
 
 			file.offset += file.size;
 		}
 	}
 
-	torrent->num_pieces = (torrent->size + torrent->piece_length - 1) / torrent->piece_length;
+	priv->num_pieces = (priv->size + priv->piece_length - 1) / priv->piece_length;
 
-	torrent->bitfield = g_malloc0 ((torrent->num_pieces + 7) /  8);
+	priv->pieces = g_memdup (pieces->string->str, pieces->string->len);
 
-	torrent->block_size = MIN (torrent->piece_length, 16384);
+	priv->bitfield = g_malloc0 ((priv->num_pieces + 7) /  8);
 
-	torrent->num_blocks = (torrent->size + torrent->block_size - 1) / torrent->block_size;
+	priv->block_size = MIN (priv->piece_length, 16384);
+
+	priv->num_blocks = (priv->size + priv->block_size - 1) / priv->block_size;
 
 	bt_bencode_destroy (metainfo);
 	return TRUE;
@@ -550,9 +573,13 @@ cleanup:
 const gchar *
 bt_torrent_get_infohash (BtTorrent *torrent)
 {
+	BtTorrentPrivate *priv;
+
 	g_return_val_if_fail (BT_IS_TORRENT (torrent), NULL);
 
-	return torrent->infohash;
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	return priv->infohash;
 }
 
 /**
@@ -567,9 +594,13 @@ bt_torrent_get_infohash (BtTorrent *torrent)
 const gchar *
 bt_torrent_get_infohash_string (BtTorrent *torrent)
 {
+	BtTorrentPrivate *priv;
+
 	g_return_val_if_fail (BT_IS_TORRENT (torrent), NULL);
 
-	return torrent->infohash_string;
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	return priv->infohash_string;
 }
 
 /**
@@ -584,9 +615,13 @@ bt_torrent_get_infohash_string (BtTorrent *torrent)
 const gchar *
 bt_torrent_get_name (BtTorrent *torrent)
 {
+	BtTorrentPrivate *priv;
+
 	g_return_val_if_fail (BT_IS_TORRENT (torrent), NULL);
 
-	return torrent->name;
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	return priv->name;
 }
 
 /**
@@ -600,9 +635,13 @@ bt_torrent_get_name (BtTorrent *torrent)
 guint64
 bt_torrent_get_size (BtTorrent *torrent)
 {
+	BtTorrentPrivate *priv;
+
 	g_return_val_if_fail (BT_IS_TORRENT (torrent), 0);
 
-	return torrent->size;
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	return priv->size;
 }
 
 /**
@@ -616,9 +655,13 @@ bt_torrent_get_size (BtTorrent *torrent)
 guint
 bt_torrent_get_num_pieces (BtTorrent *torrent)
 {
+	BtTorrentPrivate *priv;
+
 	g_return_val_if_fail (BT_IS_TORRENT (torrent), 0);
 
-	return torrent->num_pieces;
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	return priv->num_pieces;
 }
 
 /**
@@ -632,9 +675,63 @@ bt_torrent_get_num_pieces (BtTorrent *torrent)
 guint32
 bt_torrent_get_piece_length (BtTorrent *torrent)
 {
+	BtTorrentPrivate *priv;
+
 	g_return_val_if_fail (BT_IS_TORRENT (torrent), 0);
 
-	return torrent->piece_length;
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	return priv->piece_length;
+}
+
+/**
+ * bt_torrent_get_piece_length_extended:
+ * @torrent: the torrent
+ * @piece: the piece index
+ *
+ * Get the piece length for the piece index.
+ *
+ * Returns: the piece length for the piece index as a guint32.
+ * Always the same as @bt_torrent_get_piece_length except for the last piece,
+ * which might be slighty less.
+ */
+guint32
+bt_torrent_get_piece_length_extended (BtTorrent *torrent, guint piece)
+{
+	BtTorrentPrivate *priv;
+
+	g_return_val_if_fail (BT_IS_TORRENT (torrent), 0);
+
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	if (piece == (priv->num_pieces - 1))
+		return priv->size - ((priv->num_pieces - 1) * priv->piece_length);
+	else
+		return priv->piece_length;
+}
+
+/**
+ * bt_torrent_get_piece_hash:
+ * @torrent: the torrent
+ * @piece: the piece index
+ *
+ * Get the infohash of the piece as a 20-byte array.
+ *
+ * Returns: the 20-byte infohash of the piece, 
+ * which is a pointer to an internal string and should not be modified or freed.
+ */
+const gchar *
+bt_torrent_get_piece_hash (BtTorrent* torrent, guint piece)
+{
+	BtTorrentPrivate *priv;
+
+	g_return_val_if_fail (BT_IS_TORRENT (torrent), NULL);
+
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	g_return_val_if_fail (piece < priv->num_pieces, NULL);
+
+	return &priv->pieces[20 * piece];
 }
 
 /**
@@ -648,9 +745,13 @@ bt_torrent_get_piece_length (BtTorrent *torrent)
 guint
 bt_torrent_get_num_blocks (BtTorrent *torrent)
 {
+	BtTorrentPrivate *priv;
+
 	g_return_val_if_fail (BT_IS_TORRENT (torrent), 0);
 
-	return torrent->num_blocks;
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	return priv->num_blocks;
 }
 
 /**
@@ -664,9 +765,56 @@ bt_torrent_get_num_blocks (BtTorrent *torrent)
 guint
 bt_torrent_get_block_size (BtTorrent *torrent)
 {
+	BtTorrentPrivate *priv;
+
 	g_return_val_if_fail (BT_IS_TORRENT (torrent), 0);
 
-	return torrent->block_size;
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	return priv->block_size;
+}
+
+/**
+ * bt_torrent_get_file:
+ * @torrent: the torrent
+ * @index: the file index
+ *
+ * Get a file by index.
+ *
+ * Returns: the file specified by @index.
+ */
+const BtTorrentFile *
+bt_torrent_get_file (BtTorrent *torrent, guint index)
+{
+	BtTorrentPrivate *priv;
+
+	g_return_val_if_fail (BT_IS_TORRENT (torrent), NULL);
+
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	g_return_val_if_fail (index < priv->files->len, NULL);
+
+	return &g_array_index (priv->files, BtTorrentFile, index);
+}
+
+/**
+ * bt_torrent_get_num_files:
+ * @torrent: the torrent
+ *
+ * Get the number of files for the torrent.
+ *
+ * Returns: the number of files for the torrent as a guint.
+ */
+guint
+bt_torrent_get_num_files (BtTorrent *torrent)
+{
+	BtTorrentPrivate *priv;
+
+	g_return_val_if_fail (BT_IS_TORRENT (torrent), 0);
+
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	return priv->files->len;
 }
 
 /**
@@ -718,10 +866,16 @@ bt_torrent_pause (BtTorrent *torrent)
 void
 bt_torrent_add_peer (BtTorrent *torrent, BtPeer *peer)
 {
+	BtTorrentPrivate* priv;
+
 	g_return_if_fail (BT_IS_TORRENT (torrent));
 	g_return_if_fail (BT_IS_PEER (peer));
-	
-	g_object_ref (peer);
+
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	g_return_if_fail (!g_list_find (priv->peers, peer));
+
+	priv->peers = g_list_append (priv->peers, g_object_ref (peer));
 }
 
 BtTorrent *
@@ -741,13 +895,43 @@ bt_torrent_new (BtManager *manager, gchar *filename, GError **error)
 static void
 bt_torrent_dispose (GObject *object)
 {
-	BtTorrent *self = BT_TORRENT (object);
-	
-	if (self->name == NULL)
+	BtTorrent *torrent;
+	BtTorrentPrivate *priv;
+
+	torrent = BT_TORRENT (object);
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	if (priv->name == NULL)
 		return;
-	
-	g_free (self->name);
-	
+
+	g_free (priv->name);
+
+	g_free (priv->infohash);
+	g_free (priv->infohash_string);
+	g_free (priv->announce);
+	// FIXME: free contents of announce_list
+	g_slist_free (priv->announce_list);
+	g_free (priv->bitfield);
+	g_free (priv->pieces);
+	g_array_free (priv->files, TRUE);
+
+	if (priv->peers != NULL)
+	{
+		GList *i = NULL;
+		for (i = priv->peers; i != NULL; i = i->next) {
+			g_object_unref (G_OBJECT (i->data));
+		}
+		g_list_free (priv->peers);
+	}
+
+	if (priv->tracker_id != NULL)
+		g_free (priv->tracker_id);
+
+	// delete tracker_connection
+	bt_torrent_tracker_stop_announce (torrent);
+
+	g_object_unref (torrent->io);
+
 	G_OBJECT_CLASS (bt_torrent_parent_class)->dispose (object);
 	
 	return;
@@ -764,15 +948,19 @@ bt_torrent_finalize (GObject *object)
 static void
 bt_torrent_set_property (GObject *object, guint property, const GValue *value, GParamSpec *pspec)
 {
-	BtTorrent *self = BT_TORRENT (object);
+	BtTorrentPrivate *priv;
+
+	priv = BT_TORRENT_GET_PRIVATE (BT_TORRENT (object));
 	
 	switch (property) {
 	case BT_TORRENT_PROPERTY_NAME:
-		self->name = g_value_dup_string (value);
+		priv->name = g_value_dup_string (value);
 		break;
 
 	case BT_TORRENT_PROPERTY_MANAGER:
-		self->manager = BT_MANAGER (g_value_dup_object (value));
+		bt_remove_weak_pointer (G_OBJECT (priv->manager), (gpointer)&priv->manager);
+		priv->manager = BT_MANAGER (g_value_get_pointer (value));
+		bt_add_weak_pointer (G_OBJECT (priv->manager), (gpointer)&priv->manager);
 		break;
 	
 	default:
@@ -785,19 +973,22 @@ bt_torrent_set_property (GObject *object, guint property, const GValue *value, G
 static void
 bt_torrent_get_property (GObject *object, guint property, GValue *value, GParamSpec *pspec)
 {
-	BtTorrent *self = BT_TORRENT (object);
-	
+	BtTorrentPrivate *priv;
+
+	priv = BT_TORRENT_GET_PRIVATE (BT_TORRENT (object));
+
 	switch (property) {
 	case BT_TORRENT_PROPERTY_NAME:
-		g_value_set_string (value, self->name);
+		g_value_set_string (value, priv->name);
 		break;
 
 	case BT_TORRENT_PROPERTY_SIZE:
-		g_value_set_uint64 (value, self->size);
+		g_value_set_uint64 (value, priv->size);
 		break;
 	
 	case BT_TORRENT_PROPERTY_MANAGER:
-		g_value_set_object (value, self->manager);
+		// FIXME: this might leave a dangling pointer in value
+		g_value_set_pointer (value, priv->manager);
 		break;
 	
 	default:
@@ -810,8 +1001,15 @@ bt_torrent_get_property (GObject *object, guint property, GValue *value, GParamS
 static void
 bt_torrent_init (BtTorrent *torrent)
 {
-	torrent->files = g_array_new (FALSE, TRUE, sizeof (BtTorrentFile));
-	torrent->peers = NULL;
+	BtTorrentPrivate *priv;
+
+	priv = BT_TORRENT_GET_PRIVATE (torrent);
+
+	priv->files = g_array_new (FALSE, TRUE, sizeof (BtTorrentFile));
+	priv->peers = NULL;
+	priv->pieces = NULL;
+
+	torrent->io = g_object_new (BT_TYPE_IO, "torrent", torrent, NULL);
 
 	return;
 }
@@ -826,7 +1024,9 @@ bt_torrent_class_init (BtTorrentClass *torrent_class)
 	object_class->finalize = bt_torrent_finalize;
 	object_class->set_property = bt_torrent_set_property;
 	object_class->get_property = bt_torrent_get_property;
-	
+
+	g_type_class_add_private (torrent_class, sizeof (BtTorrentPrivate));
+
 	/**
 	 * BtTorrent:name:
 	 *
@@ -860,10 +1060,9 @@ bt_torrent_class_init (BtTorrentClass *torrent_class)
 	 *
 	 * The #BtManager that controls this torrent.
 	 */
-	pspec = g_param_spec_object ("manager",
+	pspec = g_param_spec_pointer ("manager",
 	                             "torrent manager",
 	                             "This torrent's manager",
-	                             BT_TYPE_MANAGER,
 	                             G_PARAM_READWRITE | G_PARAM_STATIC_NAME | G_PARAM_STATIC_BLURB | G_PARAM_STATIC_NICK | G_PARAM_CONSTRUCT_ONLY);
 	
 	g_object_class_install_property (object_class, BT_TORRENT_PROPERTY_MANAGER, pspec);

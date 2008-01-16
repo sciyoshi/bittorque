@@ -258,20 +258,27 @@ bt_peer_check_handshake (BtPeer *peer)
 	g_memmove (infohash, peer->buffer->str + 28, 20);
 	
 	infohash[20] = (gchar) 0;
-	
-	peer->torrent = bt_manager_get_torrent (peer->manager, infohash);
-	
+
+	if (peer->status == BT_PEER_STATUS_CONNECTED_IN)
+	{
+		peer->torrent = bt_manager_get_torrent (peer->manager, infohash);
+		bt_add_weak_pointer (G_OBJECT (peer->torrent), (gpointer)&peer->torrent);
+	}
+
 	if (!peer->torrent) {
 		g_debug ("connection received for invalid torrent: %s", infohash);
 		return BT_PEER_DATA_STATUS_INVALID;
 	}
 	
 	g_debug ("connection received for torrent %s", bt_torrent_get_name (peer->torrent));
-	
-	g_object_ref (peer->torrent);
-	
-	bt_torrent_add_peer (peer->torrent, peer);
-	
+
+	if (peer->status == BT_PEER_STATUS_CONNECTED_IN)
+	{
+		bt_torrent_add_peer (peer->torrent, peer);
+
+		g_object_unref (G_OBJECT (peer));
+	}
+
 	return BT_PEER_DATA_STATUS_SUCCESS;
 }
 
@@ -463,7 +470,7 @@ bt_peer_on_piece (BtPeer* peer, guint* bytes_read)
 {
 	guint32 msg_len;
 	guint32 piece, begin;
-	// gchar* data;
+	gchar* data;
 
 	// redundant, checked in bt_peer_peek_msg_type
 	if (peer->buffer->len < 5)
@@ -487,7 +494,12 @@ bt_peer_on_piece (BtPeer* peer, guint* bytes_read)
 
 	piece = g_htonl (*(guint*)(peer->buffer->str + 5));
 	begin = g_htonl (*(guint*)(peer->buffer->str + 9));
-	// data = g_memdup (peer->buffer->str + 13, msg_len - 1);
+	data = g_memdup (peer->buffer->str + 13, msg_len - 1);
+
+	bt_io_write (peer->torrent->io, piece, begin, msg_len - 14, data);
+
+	g_free (data);
+
 	g_debug ("peer sent piece %i beginning at %i", piece, begin);
 
 	*bytes_read = msg_len + 4;

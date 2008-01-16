@@ -10,5 +10,6 @@ env.StaticLibrary('bittorque',
 	 'bt-peer-extension.c',
 	 'bt-bencode.c',
 	 'bt-utils.c',
+	 'bt-io.c',
 	 'rc4.c',
 	 'sha1.c'])
