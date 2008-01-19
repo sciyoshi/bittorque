@@ -423,7 +423,7 @@ bt_peer_on_bitfield (BtPeer* peer, guint* bytes_read)
 	if ((msg_len - 1) * 8 < bt_torrent_get_num_pieces (peer->torrent))
 		return BT_PEER_DATA_STATUS_INVALID;
 
-	if (msg_len > peer->buffer->len)
+	if (msg_len > (peer->buffer->len - 4))
 		return BT_PEER_DATA_STATUS_NEED_MORE;
 
 	peer->bitfield = g_memdup (peer->buffer->str + 5, msg_len - 1);
@@ -486,7 +486,7 @@ bt_peer_on_piece (BtPeer* peer, guint* bytes_read)
 	if (msg_len - 1 > bt_torrent_get_piece_length (peer->torrent))
 		return BT_PEER_DATA_STATUS_INVALID;
 
-	if (msg_len > peer->buffer->len)
+	if (msg_len > (peer->buffer->len - 4))
 		return BT_PEER_DATA_STATUS_NEED_MORE;
 
 	// FIXME: make sure we previously requested the incoming block
@@ -571,6 +571,7 @@ bt_peer_on_keep_alive (BtPeer* peer, guint *bytes_read)
 	if (msg_len != 0)
 		return BT_PEER_DATA_STATUS_INVALID;
 
+	// FIXME: only send reply if we where not waiting for this msg
 	bt_peer_send_keep_alive (peer);
 
 	*bytes_read = 4;
