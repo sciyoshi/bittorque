@@ -1,0 +1,1 @@
+BitTorque (or Torque for short) is a BitTorrent client written in C for the Gnome desktop, although it doesn't depend on any Gnome libraries. It aims to be lightweight and powerful at the same time (like uTorrent for Windows).
